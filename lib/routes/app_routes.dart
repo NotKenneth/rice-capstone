@@ -7,7 +7,6 @@ import '../presentation/profile_screen/profile_screen.dart';
 import '../presentation/registration_screen/registration_screen.dart';
 
 class AppRoutes {
-  // TODO: Add your routes here
   static const String initial = '/';
   static const String analysis = '/analysis-screen';
   static const String dashboard = '/dashboard-screen';
@@ -24,6 +23,5 @@ class AppRoutes {
     login: (context) => const LoginScreen(),
     profile: (context) => const ProfileScreen(),
     registration: (context) => const RegistrationScreen(),
-    // TODO: Add your other routes here
   };
 }

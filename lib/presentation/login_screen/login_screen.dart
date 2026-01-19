@@ -3,8 +3,6 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 
-/// Login Screen for DryCe Monitoring System
-/// Provides secure farmer authentication with agricultural-themed design
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -19,9 +17,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
-  // Mock credentials for testing
-  final String _mockEmail = "farmer@dryce.com";
-  final String _mockPassword = "DryCe2025";
+
+  final String _mockEmail = "kenneth";
+  final String _mockPassword = "gwapoko123";
 
   @override
   void dispose() {
@@ -37,7 +35,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 2));
 
     // Validate credentials
@@ -181,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 SizedBox(height: 1.h),
                 Text(
-                  'Rice Drying Management System',
+                  'Rice Drying Monitoring System',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.white.withValues(alpha: 0.9),
                   ),
@@ -201,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Welcome Back',
+            'Welcome!',
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
