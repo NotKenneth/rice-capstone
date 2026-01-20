@@ -1,3 +1,4 @@
+import 'package:dryce_monitoring_system/widgets/custom_bottom_bar.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_export.dart';
@@ -242,6 +243,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           size: 24,
         ),
       ),
+      bottomNavigationBar: CustomBottomBar(
+        currentRoute: '/analysis-screen',
+      ),
     );
   }
 
@@ -305,5 +309,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         const SliverToBoxAdapter(child: SizedBox(height: 80)),
       ],
     );
+    
   }
 }

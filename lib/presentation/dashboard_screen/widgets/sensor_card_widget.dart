@@ -81,6 +81,7 @@ class SensorCardWidget extends StatelessWidget {
 
                 // Moisture percentage display
                 Container(
+                  alignment: Alignment.center,
                   padding: const EdgeInsets.all(12.0),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
@@ -118,6 +119,7 @@ class SensorCardWidget extends StatelessWidget {
 
                 // Status indicator
                 Container(
+                  alignment: Alignment.center,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8.0,
                     vertical: 4.0,

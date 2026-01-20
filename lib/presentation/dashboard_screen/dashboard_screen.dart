@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-
 import '../../core/app_export.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import '../../widgets/custom_icon_widget.dart';
-import './widgets/add_sensor_button_widget.dart';
 import './widgets/greeting_header_widget.dart';
 import './widgets/rice_variety_selector_widget.dart';
 import './widgets/sensor_card_widget.dart';
@@ -154,7 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 0.85,
+                  childAspectRatio: 0.70,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),
@@ -183,7 +181,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
-      floatingActionButton: AddSensorButtonWidget(onPressed: _handleAddSensor),
       bottomNavigationBar: CustomBottomBar(
         currentRoute: '/dashboard-screen',
         badges: {CustomBottomBarItem.dashboard: _hasCriticalAlerts() ? 1 : 0},
@@ -278,31 +275,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         sensor["lastUpdate"] = DateTime.now();
       }
     });
-  }
-
-  void _handleAddSensor() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add New Sensor'),
-        content: const Text(
-          'Sensor pairing functionality will be implemented here.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Implement sensor pairing
-            },
-            child: const Text('Pair Sensor'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _navigateToSensorDetail(String sensorId) {
