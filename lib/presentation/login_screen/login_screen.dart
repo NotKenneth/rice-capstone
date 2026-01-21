@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_export.dart';
 
@@ -11,15 +12,13 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final supabase = Supabase.instance.client;
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-
-
-  final String _mockEmail = "kenneth";
-  final String _mockPassword = "gwapoko123";
 
   @override
   void dispose() {
@@ -35,22 +34,35 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final AuthResponse res = await supabase.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
-    // Validate credentials
-    if (_emailController.text.trim() == _mockEmail &&
-        _passwordController.text == _mockPassword) {
-      if (mounted) {
-        // Success - navigate to dashboard
-        Navigator.pushReplacementNamed(context, '/dashboard-screen');
+      if (res.user != null) {
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/dashboard-screen',
+            (route) => false,
+          );
+        }
       }
-    } else {
+    } on AuthException catch (e) {
+      if (mounted) {
+        _showErrorDialog('Login Failed', e.message);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorDialog(
+          'Error',
+          'An unexpected error occurred. Please try again.',
+        );
+      }
+    } finally {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showErrorDialog(
-          'Invalid Credentials',
-          'Please check your email and password.\n\nTest credentials:\nEmail: farmer@dryce.com\nPassword: DryCe2025',
-        );
       }
     }
   }
@@ -90,10 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: IntrinsicHeight(
                 child: Column(
                   children: [
-                    // Agricultural-themed header
                     _buildHeader(theme),
-
-                    // Login form
                     Expanded(
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: 6.w),
@@ -103,8 +112,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-
-                    // Registration link
                     _buildRegistrationLink(theme),
                     SizedBox(height: 4.h),
                   ],
@@ -116,6 +123,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  // ... (Keep _buildHeader, _buildLoginForm, and _buildRegistrationLink exactly as they were) ...
+  // ... Paste the rest of your UI code here (it remains unchanged) ...
 
   Widget _buildHeader(ThemeData theme) {
     return Container(
@@ -133,17 +143,13 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: Stack(
         children: [
-          // Background rice field imagery
           Positioned.fill(
             child: CustomImageWidget(
               imageUrl:
                   'https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800',
               fit: BoxFit.cover,
-              semanticLabel:
-                  'Lush green rice paddy field with young rice plants in rows under bright sunlight',
             ),
           ),
-          // Gradient overlay
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -158,7 +164,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          // Logo and title
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -198,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Welcome!',
+            'Welcome Back!',
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
@@ -215,13 +220,13 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           SizedBox(height: 4.h),
 
-          // Email field
+          // Email
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             decoration: InputDecoration(
-              labelText: 'Email or Username',
+              labelText: 'Email',
               hintText: 'Enter your email',
               prefixIcon: Padding(
                 padding: EdgeInsets.all(3.w),
@@ -241,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           SizedBox(height: 2.h),
 
-          // Password field
+          // Password
           TextFormField(
             controller: _passwordController,
             obscureText: !_isPasswordVisible,
@@ -275,24 +280,17 @@ class _LoginScreenState extends State<LoginScreen> {
               if (value == null || value.isEmpty) {
                 return 'Please enter your password';
               }
-              if (value.length < 6) {
-                return 'Password must be at least 6 characters';
-              }
               return null;
             },
           ),
           SizedBox(height: 1.h),
 
-          // Forgot password link
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Password reset feature coming soon'),
-                    duration: Duration(seconds: 2),
-                  ),
+                  const SnackBar(content: Text('Feature coming soon')),
                 );
               },
               child: Text(
@@ -306,7 +304,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           SizedBox(height: 3.h),
 
-          // Login button
           SizedBox(
             height: 6.h,
             child: ElevatedButton(
@@ -344,6 +341,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildRegistrationLink(ThemeData theme) {
+    // ... (Keep existing link widget)
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 6.w),
       child: Row(

@@ -68,11 +68,16 @@ class _RegistrationFormWidgetState extends State<RegistrationFormWidget> {
       setState(() => _emailValid = false);
       return 'Email address is required';
     }
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
+
+    final emailRegex = RegExp(
+      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+    );
+
+    if (!emailRegex.hasMatch(value.trim())) {
       setState(() => _emailValid = false);
       return 'Enter a valid email address';
     }
+
     setState(() => _emailValid = true);
     return null;
   }

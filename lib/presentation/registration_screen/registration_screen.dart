@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_export.dart';
 import './widgets/registration_button_widget.dart';
@@ -60,36 +61,53 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Simulate registration process
-      await Future.delayed(const Duration(seconds: 2));
+      final supabase = Supabase.instance.client;
 
-      // Mock validation - check for existing email
-      if (_emailController.text.toLowerCase() == 'existing@example.com') {
-        throw Exception('Email already exists');
+      final AuthResponse res = await supabase.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (res.user == null) {
+        throw Exception('Registration failed: User creation returned null');
       }
 
-      // Mock password strength check
-      if (_passwordController.text.length < 8) {
-        throw Exception('Password is too weak');
-      }
+      final String userId = res.user!.id;
 
-      // Show success animation
+      List<String> nameParts = _nameController.text.trim().split(' ');
+      String firstName = nameParts[0];
+      String lastName = nameParts.length > 1
+          ? nameParts.sublist(1).join(' ')
+          : '';
+
+      await supabase.from('profiles').insert({
+        'id': userId,
+        'first_name': firstName,
+        'last_name': lastName,
+        'email_address': _emailController.text.trim(),
+        'phone_number': _phoneController.text.trim(),
+        'location': _selectedLocation,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
       if (mounted) {
         _showSuccessDialog();
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        _showErrorSnackBar(e.message);
+      }
+    } on PostgrestException catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('Database error: ${e.message}');
       }
     } catch (e) {
       if (mounted) {
         String errorMessage = 'Registration failed. Please try again.';
 
-        if (e.toString().contains('Email already exists')) {
-          errorMessage =
-              'This email is already registered. Please login instead.';
-        } else if (e.toString().contains('weak')) {
-          errorMessage = 'Password does not meet security requirements.';
-        } else if (e.toString().contains('network') ||
+        if (e.toString().contains('network') ||
             e.toString().contains('connection')) {
-          errorMessage =
-              'Network error. Please check your connection and try again.';
+          errorMessage = 'Network error. Please check your connection.';
         }
 
         _showErrorSnackBar(errorMessage);
@@ -106,48 +124,28 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.w)),
+        // ... (keep your existing styling code) ...
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 20.w,
-              height: 20.w,
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: CustomIconWidget(
-                  iconName: 'check_circle',
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 12.w,
-                ),
-              ),
-            ),
+            // ... (keep your existing icon and text widgets) ...
             SizedBox(height: 3.h),
-            Text(
-              'Welcome to DryCe!',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 1.h),
-            Text(
-              'Your farm account has been created successfully. Let\'s set up your moisture sensors.',
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 3.h),
+
+            // THE NAVIGATION BUTTON
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
+                  // 1. Close the Dialog popup
                   Navigator.of(context).pop();
-                  Navigator.pushReplacementNamed(context, '/dashboard-screen');
+
+                  // 2. Navigate to Dashboard and remove back history
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/dashboard-screen', // Make sure this matches your routes name exactly
+                    (Route<dynamic> route) =>
+                        false, // This condition removes all previous routes
+                  );
                 },
                 child: const Text('Get Started'),
               ),
