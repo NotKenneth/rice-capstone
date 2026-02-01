@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../core/app_export.dart';
 
@@ -11,19 +13,44 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final supabase = Supabase.instance.client;
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  
+  // Changed to nullable to prevent LateInitializationError
+  VideoPlayerController? _videoController;
+  
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
-  final String _mockEmail = "kenneth";
-  final String _mockPassword = "gwapoko123";
+  @override
+  void initState() {
+    super.initState();
+    _initializeVideo();
+  }
+
+  void _initializeVideo() {
+    _videoController = VideoPlayerController.asset(
+      'assets/Farmer_Uses_App_During_Rice_Drying.mp4',
+    )..initialize().then((_) {
+        // Ensure the controller is still valid before calling methods
+        if (mounted) {
+          setState(() {
+            _videoController?.setVolume(0.0);
+            _videoController?.setLooping(true);
+            _videoController?.play();
+          });
+        }
+      });
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _videoController?.dispose(); // Safe disposal
     super.dispose();
   }
 
@@ -34,22 +61,35 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final AuthResponse res = await supabase.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
-    // Validate credentials
-    if (_emailController.text.trim() == _mockEmail &&
-        _passwordController.text == _mockPassword) {
-      if (mounted) {
-        // Success - navigate to dashboard
-        Navigator.pushReplacementNamed(context, '/dashboard-screen');
+      if (res.user != null) {
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/dashboard-screen',
+            (route) => false,
+          );
+        }
       }
-    } else {
+    } on AuthException catch (e) {
+      if (mounted) {
+        _showErrorDialog('Login Failed', e.message);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorDialog(
+          'Error',
+          'An unexpected error occurred. Please try again.',
+        );
+      }
+    } finally {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showErrorDialog(
-          'Invalid Credentials',
-          'Please check your email and password.\n\nTest credentials:\nEmail: farmer@dryce.com\nPassword: DryCe2025',
-        );
       }
     }
   }
@@ -89,10 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: IntrinsicHeight(
                 child: Column(
                   children: [
-                    // Agricultural-themed header
                     _buildHeader(theme),
-
-                    // Login form
                     Expanded(
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: 6.w),
@@ -102,8 +139,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-
-                    // Registration link
                     _buildRegistrationLink(theme),
                     SizedBox(height: 4.h),
                   ],
@@ -119,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildHeader(ThemeData theme) {
     return Container(
       width: double.infinity,
-      height: 30.h,
+      height: 40.h,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -132,14 +167,19 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: Stack(
         children: [
-          // Background rice field imagery
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/rice_field.jpg', 
-              fit: BoxFit.cover,
-            ),
+            child: (_videoController != null && _videoController!.value.isInitialized)
+                ? FittedBox(
+                    fit: BoxFit.cover,
+                    clipBehavior: Clip.hardEdge,
+                    child: SizedBox(
+                      width: _videoController!.value.size.width,
+                      height: _videoController!.value.size.height,
+                      child: VideoPlayer(_videoController!),
+                    ),
+                  )
+                : Container(color: Colors.black), // Black screen while video loads
           ),
-          // Gradient overlay
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -147,36 +187,33 @@ class _LoginScreenState extends State<LoginScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.3),
-                    Colors.black.withValues(alpha: 0.6),
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.6),
                   ],
                 ),
               ),
             ),
           ),
-          // Logo and title
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CustomIconWidget(
-                  iconName: 'agriculture',
-                  size: 60,
-                  color: Colors.white,
-                ),
+                
                 SizedBox(height: 2.h),
                 Text(
                   'DryCe Monitor',
                   style: theme.textTheme.headlineMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
+                    fontSize: 40,
                   ),
                 ),
                 SizedBox(height: 1.h),
                 Text(
                   'Rice Drying Monitoring System',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 17,
                   ),
                 ),
               ],
@@ -194,9 +231,10 @@ class _LoginScreenState extends State<LoginScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Welcome!',
+            'Welcome Back!',
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w700,
+              fontSize: 30,
               color: theme.colorScheme.onSurface,
             ),
             textAlign: TextAlign.center,
@@ -205,26 +243,26 @@ class _LoginScreenState extends State<LoginScreen> {
           Text(
             'Sign in to monitor your rice drying process',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              fontSize: 17,
             ),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 4.h),
 
-          // Email field
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             decoration: InputDecoration(
-              labelText: 'Email or Username',
+              labelText: 'Email',
               hintText: 'Enter your email',
               prefixIcon: Padding(
                 padding: EdgeInsets.all(3.w),
                 child: CustomIconWidget(
                   iconName: 'person',
                   size: 24,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
             ),
@@ -237,7 +275,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           SizedBox(height: 2.h),
 
-          // Password field
           TextFormField(
             controller: _passwordController,
             obscureText: !_isPasswordVisible,
@@ -251,7 +288,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: CustomIconWidget(
                   iconName: 'lock',
                   size: 24,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
               suffixIcon: IconButton(
@@ -260,7 +297,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? 'visibility'
                       : 'visibility_off',
                   size: 24,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
                 onPressed: () {
                   setState(() => _isPasswordVisible = !_isPasswordVisible);
@@ -271,24 +308,17 @@ class _LoginScreenState extends State<LoginScreen> {
               if (value == null || value.isEmpty) {
                 return 'Please enter your password';
               }
-              if (value.length < 6) {
-                return 'Password must be at least 6 characters';
-              }
               return null;
             },
           ),
           SizedBox(height: 1.h),
 
-          // Forgot password link
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Password reset feature coming soon'),
-                    duration: Duration(seconds: 2),
-                  ),
+                  const SnackBar(content: Text('Feature coming soon')),
                 );
               },
               child: Text(
@@ -302,7 +332,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           SizedBox(height: 3.h),
 
-          // Login button
           SizedBox(
             height: 6.h,
             child: ElevatedButton(
@@ -348,7 +377,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Text(
             'New User? ',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
           TextButton(
