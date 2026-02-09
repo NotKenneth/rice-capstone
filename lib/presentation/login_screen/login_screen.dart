@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:video_player/video_player.dart';
 
 import '../../core/app_export.dart';
 
@@ -19,38 +18,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   
-  // Changed to nullable to prevent LateInitializationError
-  VideoPlayerController? _videoController;
-  
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeVideo();
-  }
-
-  void _initializeVideo() {
-    _videoController = VideoPlayerController.asset(
-      'assets/Farmer_Uses_App_During_Rice_Drying.mp4',
-    )..initialize().then((_) {
-        // Ensure the controller is still valid before calling methods
-        if (mounted) {
-          setState(() {
-            _videoController?.setVolume(0.0);
-            _videoController?.setLooping(true);
-            _videoController?.play();
-          });
-        }
-      });
-  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _videoController?.dispose(); // Safe disposal
     super.dispose();
   }
 
@@ -155,31 +129,16 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       width: double.infinity,
       height: 40.h,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.primaryContainer,
-          ],
-        ),
-      ),
       child: Stack(
         children: [
+          // Background Image replacement
           Positioned.fill(
-            child: (_videoController != null && _videoController!.value.isInitialized)
-                ? FittedBox(
-                    fit: BoxFit.cover,
-                    clipBehavior: Clip.hardEdge,
-                    child: SizedBox(
-                      width: _videoController!.value.size.width,
-                      height: _videoController!.value.size.height,
-                      child: VideoPlayer(_videoController!),
-                    ),
-                  )
-                : Container(color: Colors.black), // Black screen while video loads
+            child: Image.asset(
+              'assets/login_background.jpg', 
+              fit: BoxFit.cover,
+            ),
           ),
+          // Dark Overlay for readability
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -198,7 +157,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                
                 SizedBox(height: 2.h),
                 Text(
                   'DryCe Monitor',
