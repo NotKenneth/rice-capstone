@@ -7,6 +7,7 @@ environment:
   sdk: ^3.9.0
 
 dependencies:
+  video_player: ^2.8.1
   supabase_flutter: ^2.0.0
   flutter:       # CRITICAL: Required for every Flutter project - DO NOT REMOVE
     sdk: flutter # CRITICAL: Required for every Flutter project - DO NOT REMOVE
@@ -37,6 +38,8 @@ flutter:
   assets:
     - assets/power-button.png
     - assets/Gemini_Generated_Image_sr9q1dsr9q1dsr9q.png
+    - assets/login_background.jpg
+    - assets/Farmer_Uses_App_During_Rice_Drying.mp4
   # CRITICAL ASSET MANAGEMENT RULES:
   # - DO NOT ADD NEW ASSET DIRECTORIES (assets/svg/, assets/icons/, etc.)
   # - ONLY USE EXISTING AND ITEMS AVAILABLE IN THE DIRECTORIES LISTED ABOVE (assets/, assets/images/)
