@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-/// Interactive moisture trend chart with pinch-to-zoom and pan gestures
-class MoistureTrendChartWidget extends StatefulWidget {
+class MoistureTrendChartWidget extends StatelessWidget {
   final List<Map<String, dynamic>> chartData;
   final List<Map<String, dynamic>> varieties;
   final List<String> selectedVarieties;
@@ -15,237 +14,110 @@ class MoistureTrendChartWidget extends StatefulWidget {
   });
 
   @override
-  State<MoistureTrendChartWidget> createState() =>
-      _MoistureTrendChartWidgetState();
-}
-
-class _MoistureTrendChartWidgetState extends State<MoistureTrendChartWidget> {
-  double _minX = 0;
-  double _maxX = 24;
-  final double _minY = 0;
-  double _maxY = 30;
-  int? _touchedSpotIndex;
-
-  @override
-  void initState() {
-    super.initState();
-    _calculateAxisBounds();
-  }
-
-  void _calculateAxisBounds() {
-    if (widget.chartData.isEmpty) return;
-
-    double maxHour = 0;
-    double maxMoisture = 0;
-
-    for (var data in widget.chartData) {
-      final hour = (data['hour'] as num).toDouble();
-      final moisture = (data['moisture'] as num).toDouble();
-      if (hour > maxHour) maxHour = hour;
-      if (moisture > maxMoisture) maxMoisture = moisture;
-    }
-
-    setState(() {
-      _maxX = maxHour + 2;
-      _maxY = (maxMoisture + 5).ceilToDouble();
-    });
-  }
-
-  List<LineChartBarData> _buildChartLines() {
-    final List<LineChartBarData> lines = [];
-
-    for (var variety in widget.varieties) {
-      final varietyName = variety['name'] as String;
-      if (!widget.selectedVarieties.contains(varietyName)) continue;
-
-      final varietyColor = variety['color'] as Color;
-      final varietyData = widget.chartData
-          .where((d) => d['variety'] == varietyName)
-          .toList();
-
-      if (varietyData.isEmpty) continue;
-
-      final spots = varietyData.map((d) {
-        return FlSpot(
-          (d['hour'] as num).toDouble(),
-          (d['moisture'] as num).toDouble(),
-        );
-      }).toList();
-
-      lines.add(
-        LineChartBarData(
-          spots: spots,
-          isCurved: true,
-          color: varietyColor,
-          barWidth: 3,
-          isStrokeCapRound: true,
-          dotData: FlDotData(
-            show: true,
-            getDotPainter: (spot, percent, barData, index) {
-              return FlDotCirclePainter(
-                radius: 4,
-                color: varietyColor,
-                strokeWidth: 2,
-                strokeColor: Colors.white,
-              );
-            },
-          ),
-          belowBarData: BarAreaData(
-            show: true,
-            color: varietyColor.withValues(alpha: 0.1),
-          ),
-        ),
-      );
-    }
-
-    return lines;
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Moisture Content Trend',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
+      padding: const EdgeInsets.all(20),
+      child: SizedBox(
+        height: 300,
+        child: LineChart(
+          LineChartData(
+            // LOCK AXIS: This prevents lines from overlapping or going off-screen
+            minX: 1,
+            maxX: 12,
+            minY: 5,
+            maxY: 40,
+
+            // BORDER: Adds a clean frame around the graph
+            borderData: FlBorderData(
+              show: true,
+              border: Border.all(color: theme.dividerColor, width: 1),
             ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 300,
-            child: Semantics(
-              label:
-                  'Moisture content trend chart showing drying progress over time',
-              child: GestureDetector(
-                onScaleUpdate: (details) {
-                  if (details.scale != 1.0) {
-                    setState(() {
-                      final range = _maxX - _minX;
-                      final newRange = range / details.scale;
-                      final center = (_maxX + _minX) / 2;
-                      _minX = (center - newRange / 2).clamp(0, _maxX - 1);
-                      _maxX = (center + newRange / 2).clamp(_minX + 1, 48);
-                    });
-                  }
-                },
-                child: LineChart(
-                  LineChartData(
-                    minX: _minX,
-                    maxX: _maxX,
-                    minY: _minY,
-                    maxY: _maxY,
-                    lineBarsData: _buildChartLines(),
-                    titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 40,
-                          getTitlesWidget: (value, meta) {
-                            return Text(
-                              '${value.toInt()}%',
-                              style: theme.textTheme.bodySmall,
-                            );
-                          },
-                        ),
-                        axisNameWidget: Text(
-                          'Moisture %',
-                          style: theme.textTheme.labelSmall,
-                        ),
-                      ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 32,
-                          getTitlesWidget: (value, meta) {
-                            return Text(
-                              '${value.toInt()}h',
-                              style: theme.textTheme.bodySmall,
-                            );
-                          },
-                        ),
-                        axisNameWidget: Text(
-                          'Time (hours)',
-                          style: theme.textTheme.labelSmall,
-                        ),
-                      ),
-                      rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                    ),
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: true,
-                      getDrawingHorizontalLine: (value) {
-                        return FlLine(
-                          color: theme.colorScheme.outline.withValues(
-                            alpha: 0.2,
-                          ),
-                          strokeWidth: 1,
-                        );
-                      },
-                      getDrawingVerticalLine: (value) {
-                        return FlLine(
-                          color: theme.colorScheme.outline.withValues(
-                            alpha: 0.2,
-                          ),
-                          strokeWidth: 1,
-                        );
-                      },
-                    ),
-                    borderData: FlBorderData(
-                      show: true,
-                      border: Border.all(
-                        color: theme.colorScheme.outline,
-                        width: 1,
-                      ),
-                    ),
-                    lineTouchData: LineTouchData(
-                      enabled: true,
-                      touchCallback:
-                          (FlTouchEvent event, LineTouchResponse? response) {
-                            if (response?.lineBarSpots != null &&
-                                response!.lineBarSpots!.isNotEmpty) {
-                              setState(() {
-                                _touchedSpotIndex =
-                                    response.lineBarSpots!.first.spotIndex;
-                              });
-                            } else {
-                              setState(() {
-                                _touchedSpotIndex = null;
-                              });
-                            }
-                          },
-                      touchTooltipData: LineTouchTooltipData(
-                        getTooltipItems: (touchedSpots) {
-                          return touchedSpots.map((spot) {
-                            final varietyIndex = touchedSpots.indexOf(spot);
-                            final variety = widget.varieties[varietyIndex];
-                            return LineTooltipItem(
-                              '${variety['name']}\n${spot.y.toStringAsFixed(1)}%',
-                              theme.textTheme.bodySmall!.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            );
-                          }).toList();
-                        },
-                      ),
-                    ),
+
+            // LEGENDS: Defines the X and Y axis labels
+            titlesData: FlTitlesData(
+              show: true,
+              // Y-AXIS (Moisture %)
+              leftTitles: AxisTitles(
+                axisNameWidget: const Text(
+                  "Moisture %",
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 40,
+                  interval: 5, // Shows 5, 10, 15... 40
+                  getTitlesWidget: (value, meta) => Text(
+                    '${value.toInt()}%',
+                    style: const TextStyle(fontSize: 10),
                   ),
                 ),
               ),
+              // X-AXIS (Time in Hours)
+              bottomTitles: AxisTitles(
+                axisNameWidget: const Text(
+                  "Time (Hours)",
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 30,
+                  interval: 2, // Shows 2h, 4h, 6h... 12h
+                  getTitlesWidget: (value, meta) => Text(
+                    '${value.toInt()}h',
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                ),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
             ),
+
+            // GRID: Helps distinguish values
+            gridData: FlGridData(
+              show: true,
+              horizontalInterval: 5,
+              getDrawingHorizontalLine: (value) => FlLine(
+                color: theme.dividerColor.withOpacity(0.1),
+                strokeWidth: 1,
+              ),
+            ),
+
+            lineBarsData: varieties
+                .where((v) => selectedVarieties.contains(v['name']))
+                .map((variety) {
+                  final varietyData = chartData
+                      .where((d) => d['variety'] == variety['name'])
+                      .toList();
+
+                  return LineChartBarData(
+                    spots: varietyData
+                        .map(
+                          (d) => FlSpot(
+                            (d['hour'] as num).toDouble(),
+                            (d['moisture'] as num).toDouble(),
+                          ),
+                        )
+                        .toList(),
+                    isCurved: true,
+                    color: variety['color'] as Color,
+                    barWidth: 3,
+                    dotData: const FlDotData(
+                      show: false,
+                    ), // Disable dots to prevent overlapping clutter
+                    belowBarData: BarAreaData(
+                      show: false,
+                    ), // Disable shading to keep lines distinct
+                  );
+                })
+                .toList(),
           ),
-        ],
+        ),
       ),
     );
   }

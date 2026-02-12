@@ -1,236 +1,235 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../widgets/custom_icon_widget.dart';
-
-class SensorCardWidget extends StatelessWidget {
+class SensorCardWidget extends StatefulWidget {
   final String sensorId;
   final double moisturePercentage;
+  final double temperature;
   final String status;
   final DateTime lastUpdate;
+  final DateTime? startTime;
   final String connectionStatus;
   final String riceVariety;
-  final VoidCallback onTap;
+  final bool isActive;
+  final VoidCallback? onTap;
 
   const SensorCardWidget({
     super.key,
     required this.sensorId,
     required this.moisturePercentage,
+    required this.temperature,
     required this.status,
     required this.lastUpdate,
+    this.startTime,
     required this.connectionStatus,
     required this.riceVariety,
+    this.isActive = false,
     required this.onTap,
   });
 
   @override
+  State<SensorCardWidget> createState() => _SensorCardWidgetState();
+}
+
+class _SensorCardWidgetState extends State<SensorCardWidget> {
+  Timer? _timer;
+  Duration _elapsedTime = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _initTimer();
+  }
+
+  @override
+  void didUpdateWidget(SensorCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive != oldWidget.isActive ||
+        widget.startTime != oldWidget.startTime) {
+      _initTimer();
+    }
+  }
+
+  void _initTimer() {
+    _timer?.cancel();
+    if (widget.isActive && widget.startTime != null) {
+      _updateElapsed();
+      _timer = Timer.periodic(
+        const Duration(seconds: 1),
+        (t) => _updateElapsed(),
+      );
+    } else {
+      setState(() => _elapsedTime = Duration.zero);
+    }
+  }
+
+  void _updateElapsed() {
+    if (widget.startTime != null) {
+      setState(
+        () => _elapsedTime = DateTime.now().difference(widget.startTime!),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _formatDuration(Duration d) {
+    String digits(int n) => n.toString().padLeft(2, "0");
+    return "${digits(d.inHours)}:${digits(d.inMinutes.remainder(60))}:${digits(d.inSeconds.remainder(60))}";
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final statusColor = _getStatusColor(status, theme);
-    final connectionColor = _getConnectionColor(connectionStatus, theme);
+    final bool isOffline = widget.status.toLowerCase() == 'offline';
+    final Color varietyColor = _getVarietyColor(widget.riceVariety);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12.0),
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(12.0),
-            border: Border.all(color: statusColor, width: 2.0),
-            boxShadow: [
-              BoxShadow(
-                color: theme.colorScheme.shadow,
-                blurRadius: 8.0,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: widget.isActive
+              ? varietyColor
+              : theme.dividerColor.withOpacity(0.2),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with sensor ID and connection status
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Text(
-                        sensorId,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      widget.sensorId,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: Colors.black,
                       ),
                     ),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: connectionColor,
-                        shape: BoxShape.circle,
-                      ),
+                    Icon(
+                      isOffline ? Icons.wifi_off : Icons.wifi,
+                      size: 14,
+                      color: isOffline ? Colors.red : Colors.green,
                     ),
                   ],
+                ),
+                const SizedBox(height: 20),
+
+                // MOISTURE READING
+                Text(
+                  isOffline
+                      ? "--"
+                      : "${widget.moisturePercentage.toStringAsFixed(1)}%",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: isOffline ? Colors.grey : varietyColor,
+                  ),
+                ),
+                const Text(
+                  "MOISTURE LEVEL",
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: Colors.grey,
+                    letterSpacing: 1,
+                  ),
                 ),
 
                 const SizedBox(height: 12),
-
-                // Moisture percentage display
-                Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.all(12.0),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Column(
-                    children: [
-                      CustomIconWidget(
-                        iconName: 'water_drop',
-                        color: statusColor,
-                        size: 32,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${moisturePercentage.toStringAsFixed(1)}%',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: statusColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Moisture',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.6,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Spacer(),
-
-                // Status indicator
-                Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8.0,
-                    vertical: 4.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4.0),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CustomIconWidget(
-                        iconName: _getStatusIcon(status),
-                        color: statusColor,
-                        size: 12,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        status.toUpperCase(),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: statusColor,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // Last update time
-                Row(
-                  children: [
-                    CustomIconWidget(
-                      iconName: 'access_time',
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                      size: 12,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        _getTimeAgo(lastUpdate),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.6,
-                          ),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
+                _timerBadge(varietyColor),
               ],
             ),
+          ),
+          const Spacer(),
+          _actionButton(isOffline),
+        ],
+      ),
+    );
+  }
+
+  Widget _timerBadge(Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: widget.isActive ? color.withOpacity(0.1) : Colors.grey[100],
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        widget.isActive ? _formatDuration(_elapsedTime) : "00:00:00",
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          color: widget.isActive ? color : Colors.grey,
+        ),
+      ),
+    );
+  }
+
+  Widget _actionButton(bool offline) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: offline ? null : () => _togglePower(),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.isActive
+                ? Colors.redAccent
+                : Colors.green[700],
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Text(
+            widget.isActive ? "STOP" : "START",
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
           ),
         ),
       ),
     );
   }
 
-  Color _getStatusColor(String status, ThemeData theme) {
-    switch (status.toLowerCase()) {
-      case 'optimal':
-        return const Color(0xFF4CAF50);
-      case 'warning':
-        return const Color(0xFFFF9800);
-      case 'critical':
-        return theme.colorScheme.error;
-      default:
-        return theme.colorScheme.primary;
+  Future<void> _togglePower() async {
+    final bool starting = !widget.isActive;
+
+    // We try to match the ID as a dynamic value.
+    // If your DB ID is an integer, int.tryParse(widget.sensorId) is better.
+    final dynamic dbId = int.tryParse(widget.sensorId) ?? widget.sensorId;
+
+    try {
+      await Supabase.instance.client
+          .from('sensors')
+          .update({
+            'is_active': starting,
+            'last_started_at': starting
+                ? DateTime.now().toIso8601String()
+                : null,
+          })
+          .eq('id', dbId); // Use the parsed ID
+
+      debugPrint("Successfully toggled $dbId to $starting");
+    } catch (e) {
+      debugPrint("Single update error for $dbId: $e");
     }
   }
 
-  Color _getConnectionColor(String connectionStatus, ThemeData theme) {
-    switch (connectionStatus.toLowerCase()) {
-      case 'connected':
-        return const Color(0xFF4CAF50);
-      case 'weak':
-        return const Color(0xFFFF9800);
-      case 'disconnected':
-        return theme.colorScheme.error;
-      default:
-        return theme.colorScheme.onSurface.withValues(alpha: 0.3);
-    }
-  }
-
-  String _getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'optimal':
-        return 'check_circle';
-      case 'warning':
-        return 'warning';
-      case 'critical':
-        return 'error';
-      default:
-        return 'info';
-    }
-  }
-
-  String _getTimeAgo(DateTime dateTime) {
-    final difference = DateTime.now().difference(dateTime);
-
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else {
-      return '${difference.inDays}d ago';
-    }
+  Color _getVarietyColor(String v) {
+    if (v.contains('Jasmine')) return const Color(0xFF2E7D32);
+    if (v.contains('Basmati')) return const Color(0xFF1976D2);
+    return const Color(0xFF4CAF50);
   }
 }
