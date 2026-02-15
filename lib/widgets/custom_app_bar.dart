@@ -1,55 +1,26 @@
 import 'package:flutter/material.dart';
 
 /// App bar variant types for different screen contexts
-enum CustomAppBarVariant {
-  /// Standard app bar with title and optional actions
-  standard,
+enum CustomAppBarVariant { standard, withBackButton, withSearch, transparent }
 
-  /// App bar with back button for navigation stack
-  withBackButton,
-
-  /// App bar with search functionality
-  withSearch,
-
-  /// Transparent app bar for overlays
-  transparent,
-}
-
-/// Custom app bar optimized for agricultural monitoring application
-/// Provides clear hierarchy and outdoor-readable design
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  /// App bar title text
   final String title;
-
-  /// App bar variant type
   final CustomAppBarVariant variant;
-
-  /// Optional subtitle for additional context
   final String? subtitle;
-
-  /// Leading widget (overrides default back button if provided)
   final Widget? leading;
-
-  /// Action widgets displayed on the right side
   final List<Widget>? actions;
-
-  /// Whether to show sync status indicator
   final bool showSyncStatus;
-
-  /// Sync status (true = synced, false = syncing, null = offline)
   final bool? syncStatus;
-
-  /// Optional callback for search functionality
   final Function(String)? onSearch;
-
-  /// Whether to center the title
   final bool centerTitle;
-
-  /// Optional background color override
   final Color? backgroundColor;
-
-  /// Elevation value (0-4 for subtle hierarchy)
   final double elevation;
+
+  /// Number of unread notifications to show in the badge
+  final int unreadNotificationCount;
+
+  /// Callback when the notification bell is tapped
+  final VoidCallback? onNotificationTap;
 
   const CustomAppBar({
     super.key,
@@ -64,6 +35,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.centerTitle = false,
     this.backgroundColor,
     this.elevation = 2.0,
+    this.unreadNotificationCount = 0,
+    this.onNotificationTap,
   });
 
   @override
@@ -92,7 +65,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildTitle(BuildContext context) {
     final theme = Theme.of(context);
-
     if (subtitle != null) {
       return Column(
         crossAxisAlignment: centerTitle
@@ -110,7 +82,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           Text(
             subtitle!,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -118,7 +90,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       );
     }
-
     return Text(
       title,
       style: theme.textTheme.titleLarge,
@@ -128,19 +99,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Widget? _buildLeading(BuildContext context) {
-    if (leading != null) {
-      return leading;
-    }
-
+    if (leading != null) return leading;
     if (variant == CustomAppBarVariant.withBackButton) {
       return IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () => Navigator.of(context).pop(),
         tooltip: 'Back',
-        iconSize: 24,
       );
     }
-
     return null;
   }
 
@@ -148,178 +114,53 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final theme = Theme.of(context);
     final List<Widget> actionWidgets = [];
 
-    // Add sync status indicator
     if (showSyncStatus) {
       actionWidgets.add(
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: _buildSyncIndicator(theme),
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: _buildSyncIndicator(theme, syncStatus),
         ),
       );
     }
 
-    // Add search button for search variant
+    // Notification Bell with Badge
+    actionWidgets.add(
+      _NotificationBell(
+        count: unreadNotificationCount,
+        onTap: onNotificationTap,
+      ),
+    );
+
     if (variant == CustomAppBarVariant.withSearch && onSearch != null) {
       actionWidgets.add(
         IconButton(
           icon: const Icon(Icons.search),
-          onPressed: () => _showSearchDialog(context),
-          tooltip: 'Search',
-          iconSize: 24,
+          onPressed: () => _showSearchDialog(context, onSearch!),
         ),
       );
     }
 
-    // Add custom actions
-    if (actions != null) {
-      actionWidgets.addAll(actions!);
-    }
+    if (actions != null) actionWidgets.addAll(actions!);
 
-    return actionWidgets.isEmpty ? null : actionWidgets;
-  }
-
-  Widget _buildSyncIndicator(ThemeData theme) {
-    IconData icon;
-    Color color;
-    String tooltip;
-
-    if (syncStatus == null) {
-      icon = Icons.cloud_off;
-      color = theme.colorScheme.error;
-      tooltip = 'Offline';
-    } else if (syncStatus == true) {
-      icon = Icons.cloud_done;
-      color = theme.colorScheme.primary;
-      tooltip = 'Synced';
-    } else {
-      icon = Icons.cloud_sync;
-      color = theme.colorScheme.secondary;
-      tooltip = 'Syncing...';
-    }
-
-    return Tooltip(
-      message: tooltip,
-      child: Icon(icon, size: 20, color: color),
-    );
-  }
-
-  void _showSearchDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => _SearchDialog(onSearch: onSearch!),
-    );
-  }
-}
-
-/// Search dialog for app bar search functionality
-class _SearchDialog extends StatefulWidget {
-  final Function(String) onSearch;
-
-  const _SearchDialog({required this.onSearch});
-
-  @override
-  State<_SearchDialog> createState() => _SearchDialogState();
-}
-
-class _SearchDialogState extends State<_SearchDialog> {
-  final TextEditingController _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Search',
-                hintText: 'Enter search term...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _controller.clear(),
-                ),
-              ),
-              onSubmitted: (value) {
-                if (value.isNotEmpty) {
-                  widget.onSearch(value);
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () {
-                    if (_controller.text.isNotEmpty) {
-                      widget.onSearch(_controller.text);
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  child: const Text('Search'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+    return actionWidgets;
   }
 }
 
 /// Sliver variant for use in CustomScrollView
 class CustomSliverAppBar extends StatelessWidget {
-  /// App bar title text
   final String title;
-
-  /// Optional subtitle for additional context
   final String? subtitle;
-
-  /// Leading widget
   final Widget? leading;
-
-  /// Action widgets displayed on the right side
   final List<Widget>? actions;
-
-  /// Whether to show sync status indicator
   final bool showSyncStatus;
-
-  /// Sync status (true = synced, false = syncing, null = offline)
   final bool? syncStatus;
-
-  /// Whether the app bar should float
   final bool floating;
-
-  /// Whether the app bar should pin when scrolled
   final bool pinned;
-
-  /// Whether the app bar should snap
   final bool snap;
-
-  /// Expanded height for flexible space
   final double? expandedHeight;
-
-  /// Flexible space widget
   final Widget? flexibleSpace;
+  final int unreadNotificationCount;
+  final VoidCallback? onNotificationTap;
 
   const CustomSliverAppBar({
     super.key,
@@ -334,6 +175,8 @@ class CustomSliverAppBar extends StatelessWidget {
     this.snap = false,
     this.expandedHeight,
     this.flexibleSpace,
+    this.unreadNotificationCount = 0,
+    this.onNotificationTap,
   });
 
   @override
@@ -359,7 +202,6 @@ class CustomSliverAppBar extends StatelessWidget {
 
   Widget _buildTitle(BuildContext context) {
     final theme = Theme.of(context);
-
     if (subtitle != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,7 +217,7 @@ class CustomSliverAppBar extends StatelessWidget {
           Text(
             subtitle!,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -383,7 +225,6 @@ class CustomSliverAppBar extends StatelessWidget {
         ],
       );
     }
-
     return Text(
       title,
       style: theme.textTheme.titleLarge,
@@ -400,40 +241,165 @@ class CustomSliverAppBar extends StatelessWidget {
       actionWidgets.add(
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: _buildSyncIndicator(theme),
+          child: _buildSyncIndicator(theme, syncStatus),
         ),
       );
     }
 
-    if (actions != null) {
-      actionWidgets.addAll(actions!);
-    }
+    actionWidgets.add(
+      _NotificationBell(
+        count: unreadNotificationCount,
+        onTap: onNotificationTap,
+      ),
+    );
 
-    return actionWidgets.isEmpty ? null : actionWidgets;
+    if (actions != null) actionWidgets.addAll(actions!);
+
+    return actionWidgets;
+  }
+}
+
+// --- Helper Widgets to avoid code duplication ---
+
+class _NotificationBell extends StatelessWidget {
+  final int count;
+  final VoidCallback? onTap;
+
+  const _NotificationBell({required this.count, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications_none_rounded, size: 26),
+          onPressed: onTap,
+          tooltip: 'Notifications',
+        ),
+        if (count > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+Widget _buildSyncIndicator(ThemeData theme, bool? syncStatus) {
+  IconData icon;
+  Color color;
+  String tooltip;
+
+  if (syncStatus == null) {
+    icon = Icons.cloud_off;
+    color = theme.colorScheme.error;
+    tooltip = 'Offline';
+  } else if (syncStatus == true) {
+    icon = Icons.cloud_done;
+    color = theme.colorScheme.primary;
+    tooltip = 'Synced';
+  } else {
+    icon = Icons.cloud_sync;
+    color = theme.colorScheme.secondary;
+    tooltip = 'Syncing...';
   }
 
-  Widget _buildSyncIndicator(ThemeData theme) {
-    IconData icon;
-    Color color;
-    String tooltip;
+  return Tooltip(
+    message: tooltip,
+    child: Icon(icon, size: 20, color: color),
+  );
+}
 
-    if (syncStatus == null) {
-      icon = Icons.cloud_off;
-      color = theme.colorScheme.error;
-      tooltip = 'Offline';
-    } else if (syncStatus == true) {
-      icon = Icons.cloud_done;
-      color = theme.colorScheme.primary;
-      tooltip = 'Synced';
-    } else {
-      icon = Icons.cloud_sync;
-      color = theme.colorScheme.secondary;
-      tooltip = 'Syncing...';
-    }
+void _showSearchDialog(BuildContext context, Function(String) onSearch) {
+  showDialog(
+    context: context,
+    builder: (context) => _SearchDialog(onSearch: onSearch),
+  );
+}
 
-    return Tooltip(
-      message: tooltip,
-      child: Icon(icon, size: 20, color: color),
+class _SearchDialog extends StatefulWidget {
+  final Function(String) onSearch;
+  const _SearchDialog({required this.onSearch});
+
+  @override
+  State<_SearchDialog> createState() => _SearchDialogState();
+}
+
+class _SearchDialogState extends State<_SearchDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Search',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _controller.clear(),
+                ),
+              ),
+              onSubmitted: (value) {
+                if (value.isNotEmpty) {
+                  widget.onSearch(value);
+                  Navigator.pop(context);
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_controller.text.isNotEmpty) {
+                      widget.onSearch(_controller.text);
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('Search'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

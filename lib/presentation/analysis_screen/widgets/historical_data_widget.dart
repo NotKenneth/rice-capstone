@@ -1,9 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-
 import '../../../widgets/custom_icon_widget.dart';
 
-/// Historical drying cycles with collapsible cards
 class HistoricalDataWidget extends StatefulWidget {
   final List<Map<String, dynamic>> historicalCycles;
 
@@ -26,7 +24,7 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Historical Drying Cycles',
+            'Real-time Sensor History',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -49,88 +47,91 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
                 child: Column(
                   children: [
                     ListTile(
-                      onTap: () {
-                        setState(() {
-                          _expandedIndex = isExpanded ? null : index;
-                        });
-                      },
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withValues(
-                            alpha: 0.1,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: CustomIconWidget(
-                          iconName: 'history',
-                          color: theme.colorScheme.primary,
-                          size: 24,
-                        ),
+                      onTap: () => setState(
+                        () => _expandedIndex = isExpanded ? null : index,
                       ),
+                      leading: _buildLeadingIcon(theme),
                       title: Text(
-                        cycle['variety'] as String,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        cycle['variety'],
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: Text(
-                        cycle['date'] as String,
-                        style: theme.textTheme.bodySmall,
-                      ),
+                      subtitle: Text(cycle['date']),
                       trailing: CustomIconWidget(
                         iconName: isExpanded ? 'expand_less' : 'expand_more',
-                        color: theme.colorScheme.onSurface,
                         size: 24,
                       ),
                     ),
-                    if (isExpanded) ...[
-                      const Divider(height: 1),
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _buildStatItem(
-                                  context,
-                                  'Duration',
-                                  cycle['duration'] as String,
-                                  'schedule',
-                                ),
-                                _buildStatItem(
-                                  context,
-                                  'Initial',
-                                  '${cycle['initialMoisture']}%',
-                                  'water_drop',
-                                ),
-                                _buildStatItem(
-                                  context,
-                                  'Final',
-                                  '${cycle['finalMoisture']}%',
-                                  'check_circle',
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              height: 120,
-                              child: _buildThumbnailChart(
-                                context,
-                                cycle['chartData']
-                                    as List<Map<String, dynamic>>,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    if (isExpanded) _buildExpandedContent(context, cycle),
                   ],
                 ),
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeadingIcon(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: CustomIconWidget(
+        iconName: 'history',
+        color: theme.colorScheme.primary,
+        size: 24,
+      ),
+    );
+  }
+
+  Widget _buildExpandedContent(
+    BuildContext context,
+    Map<String, dynamic> cycle,
+  ) {
+    // Determine if we should show minutes or hours based on duration string/value
+    // Assumes cycle['durationValue'] is a double (e.g. 0.5 for 30m or 12.0 for 12h)
+    final double duration = (cycle['durationValue'] ?? 12.0).toDouble();
+    final bool isShortDuration = duration <= 1.0;
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem(
+                context,
+                'Duration',
+                cycle['duration'],
+                'schedule',
+              ),
+              _buildStatItem(
+                context,
+                'Start',
+                '${cycle['initialMoisture']}%',
+                'water_drop',
+              ),
+              _buildStatItem(
+                context,
+                'Latest',
+                '${cycle['finalMoisture']}%',
+                'check_circle',
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 180,
+            child: _buildThumbnailChart(
+              context,
+              cycle['chartData'] as List<Map<String, dynamic>>,
+              duration,
+              isShortDuration,
+            ),
           ),
         ],
       ),
@@ -144,7 +145,6 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
     String iconName,
   ) {
     final theme = Theme.of(context);
-
     return Column(
       children: [
         CustomIconWidget(
@@ -153,18 +153,8 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
           size: 20,
         ),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
-        ),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
@@ -172,46 +162,81 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
   Widget _buildThumbnailChart(
     BuildContext context,
     List<Map<String, dynamic>> data,
+    double maxX,
+    bool useMinutes,
   ) {
     final theme = Theme.of(context);
-
-    final spots = data.map((d) {
-      return FlSpot(
-        (d['hour'] as num).toDouble(),
-        (d['moisture'] as num).toDouble(),
-      );
-    }).toList();
+    final spots = data
+        .map(
+          (d) => FlSpot(
+            (d['hour'] as num).toDouble(),
+            (d['moisture'] as num).toDouble(),
+          ),
+        )
+        .toList();
 
     return LineChart(
       LineChartData(
+        // DYNAMIC X-AXIS: Stops exactly at the recorded duration
         minX: 0,
-        maxX: spots.last.x,
+        maxX: maxX,
         minY: 0,
-        maxY: 30,
+        maxY: 40,
+
         lineBarsData: [
           LineChartBarData(
             spots: spots,
             isCurved: true,
             color: theme.colorScheme.primary,
-            barWidth: 2,
-            isStrokeCapRound: true,
+            barWidth: 3,
             dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: theme.colorScheme.primary.withValues(alpha: 0.1),
-            ),
+            belowBarData: BarAreaData(show: false),
           ),
         ],
-        titlesData: const FlTitlesData(show: false),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(
+        titlesData: FlTitlesData(
           show: true,
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
-            width: 1,
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 35,
+              interval: 10,
+              getTitlesWidget: (v, m) =>
+                  Text('${v.toInt()}%', style: const TextStyle(fontSize: 9)),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 22,
+              // Adjust interval so labels don't crowd on short durations
+              interval: maxX > 2 ? 2 : maxX / 3,
+              getTitlesWidget: (v, m) {
+                // If duration is 0.5 (30 mins) and useMinutes is true,
+                // you might need to multiply v by 60 for the label.
+                String label = useMinutes
+                    ? '${(v * 60).toInt()}m'
+                    : '${v.toInt()}hr';
+                return Text(label, style: const TextStyle(fontSize: 9));
+              },
+            ),
           ),
         ),
-        lineTouchData: const LineTouchData(enabled: false),
+        gridData: FlGridData(
+          show: true,
+          horizontalInterval: 10,
+          drawVerticalLine: true,
+          verticalInterval: maxX > 2 ? 2 : maxX / 3,
+        ),
+        borderData: FlBorderData(
+          show: true,
+          border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
+        ),
       ),
     );
   }
