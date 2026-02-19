@@ -202,7 +202,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                       ),
               ],
             ),
-      // THIS IS THE LINE THAT SHOWS THE NAV BAR
       bottomNavigationBar: CustomBottomBar(currentRoute: '/analysis-screen'),
     );
   }
