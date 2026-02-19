@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
@@ -124,32 +125,20 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ... (Keep _buildHeader, _buildLoginForm, and _buildRegistrationLink exactly as they were) ...
-  // ... Paste the rest of your UI code here (it remains unchanged) ...
-
   Widget _buildHeader(ThemeData theme) {
     return Container(
       width: double.infinity,
-      height: 30.h,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.primaryContainer,
-          ],
-        ),
-      ),
+      height: 40.h,
       child: Stack(
         children: [
+          // Background Image replacement
           Positioned.fill(
-            child: CustomImageWidget(
-              imageUrl:
-                  'https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800',
+            child: Image.asset(
+              'assets/login_background.jpg', 
               fit: BoxFit.cover,
             ),
           ),
+          // Dark Overlay for readability
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -157,8 +146,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.3),
-                    Colors.black.withValues(alpha: 0.6),
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.6),
                   ],
                 ),
               ),
@@ -168,24 +157,21 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CustomIconWidget(
-                  iconName: 'agriculture',
-                  size: 60,
-                  color: Colors.white,
-                ),
                 SizedBox(height: 2.h),
                 Text(
                   'DryCe Monitor',
                   style: theme.textTheme.headlineMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
+                    fontSize: 40,
                   ),
                 ),
                 SizedBox(height: 1.h),
                 Text(
                   'Rice Drying Monitoring System',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 17,
                   ),
                 ),
               ],
@@ -206,6 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
             'Welcome Back!',
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w700,
+              fontSize: 30,
               color: theme.colorScheme.onSurface,
             ),
             textAlign: TextAlign.center,
@@ -214,13 +201,13 @@ class _LoginScreenState extends State<LoginScreen> {
           Text(
             'Sign in to monitor your rice drying process',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              fontSize: 17,
             ),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 4.h),
 
-          // Email
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
@@ -233,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: CustomIconWidget(
                   iconName: 'person',
                   size: 24,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
             ),
@@ -246,7 +233,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           SizedBox(height: 2.h),
 
-          // Password
           TextFormField(
             controller: _passwordController,
             obscureText: !_isPasswordVisible,
@@ -260,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: CustomIconWidget(
                   iconName: 'lock',
                   size: 24,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
               ),
               suffixIcon: IconButton(
@@ -269,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? 'visibility'
                       : 'visibility_off',
                   size: 24,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
                 onPressed: () {
                   setState(() => _isPasswordVisible = !_isPasswordVisible);
@@ -341,7 +327,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildRegistrationLink(ThemeData theme) {
-    // ... (Keep existing link widget)
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 6.w),
       child: Row(
@@ -350,7 +335,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Text(
             'New User? ',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
           TextButton(
