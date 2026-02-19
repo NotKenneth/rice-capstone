@@ -167,6 +167,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final List<String> idsToUpdate = moistureSensors
           .map((s) => s['id'].toString())
           .toList();
+
+      if (!idsToUpdate.contains('TEMPERATURE')) {
+        idsToUpdate.add('TEMPERATURE');
+      }
       final String nowIso = DateTime.now().toUtc().toIso8601String();
 
       // 3. Update the 'sensors' table status
@@ -177,9 +181,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'is_active': activate,
             'last_started_at': activate ? nowIso : null,
             'last_update': nowIso,
-            'rice_variety': activate
-                ? _selectedRiceVariety
-                : _selectedRiceVariety,
+            'rice_variety': activate ? _selectedRiceVariety : "EMPTY",
           })
           .inFilter('id', idsToUpdate);
 
@@ -193,6 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'sensor_id': sensor['id'],
           'moisture_percentage': (sensor['moisture_percentage'] as num? ?? 0)
               .toDouble(),
+          'temperature': (sensor['temperature'] as num? ?? 0).toDouble(),
           'recorded_at':
               nowIso, // This timestamp links it to "today" in your date selector
         };

@@ -45,12 +45,17 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   // Master load function
   Future<void> _loadAllData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
+
     final history = await _fetchAllSensorsHistory();
-    setState(() {
-      _sensorHistoricalData = history;
-      _isLoading = false;
-    });
+
+    if (mounted) {
+      setState(() {
+        _sensorHistoricalData = history;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<List<Map<String, dynamic>>> _fetchAllSensorsHistory() async {
@@ -146,14 +151,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Analysis',
-        showNotifications: false,
-        showSyncStatus: true,
-        syncStatus: true,
         actions: [
-          IconButton(
-            onPressed: _loadAllData,
-            icon: const CustomIconWidget(iconName: 'refresh', size: 24),
-          ),
+          IconButton(onPressed: _loadAllData, icon: Icon(Icons.refresh)),
         ],
       ),
       body: _isLoading
@@ -169,15 +168,41 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     },
                   ),
                 ),
-                // Historical Sensors Section
-                SliverToBoxAdapter(
-                  child: HistoricalDataWidget(
-                    historicalCycles: _sensorHistoricalData,
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                // THE "NO RECORD" LOGIC
+                _sensorHistoricalData.isEmpty
+                    ? SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.query_stats,
+                              size: 80,
+                              color: Colors.grey[300],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "No History Found",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            Text(
+                              "No drying records for ${DateFormat('MMMM dd').format(_selectedDate)}.",
+                            ),
+                          ],
+                        ),
+                      )
+                    : SliverToBoxAdapter(
+                        child: HistoricalDataWidget(
+                          historicalCycles: _sensorHistoricalData,
+                        ),
+                      ),
               ],
             ),
+      // THIS IS THE LINE THAT SHOWS THE NAV BAR
       bottomNavigationBar: CustomBottomBar(currentRoute: '/analysis-screen'),
     );
   }

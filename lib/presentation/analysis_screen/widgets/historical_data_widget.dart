@@ -162,24 +162,35 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
   Widget _buildThumbnailChart(
     BuildContext context,
     List<Map<String, dynamic>> data,
-    double maxX,
+    double recordedDuration, // This comes from your fetched data
     bool useMinutes,
   ) {
     final theme = Theme.of(context);
-    // Update this line in your _buildThumbnailChart method:
-    final spots = data.map((d) {
-      // Use ?? 0 to handle null values safely
-      final x = (d['minute'] ?? d['hour'] ?? 0) as num;
-      final y = (d['moisture'] ?? 0) as num;
 
-      return FlSpot(x.toDouble(), y.toDouble());
+    // 1. Find the actual max time in your data to prevent the line from going out of bounds
+    // If data is empty, default to 1.0 to avoid division by zero errors
+    double dynamicMaxX = data.isEmpty
+        ? 1.0
+        : data
+              .map((d) => (d['minute'] ?? 0).toDouble())
+              .reduce((a, b) => a > b ? a : b);
+
+    // Ensure maxX is at least a small value so the chart isn't a single vertical line at the start
+    if (dynamicMaxX < 1.0) dynamicMaxX = 1.0;
+
+    final spots = data.map((d) {
+      return FlSpot(
+        (d['minute'] ?? 0).toDouble(),
+        (d['moisture'] ?? 0).toDouble(),
+      );
     }).toList();
 
     return LineChart(
       LineChartData(
-        // DYNAMIC X-AXIS: Stops exactly at the recorded duration
+        clipData: const FlClipData.all(),
+        // 2. SET DYNAMIC BOUNDARIES
         minX: 0,
-        maxX: maxX,
+        maxX: dynamicMaxX,
         minY: 0,
         maxY: 40,
 
@@ -190,7 +201,10 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
             color: theme.colorScheme.primary,
             barWidth: 3,
             dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: theme.colorScheme.primary.withOpacity(0.1),
+            ),
           ),
         ],
         titlesData: FlTitlesData(
@@ -201,37 +215,33 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
           rightTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 35,
-              interval: 10,
-              getTitlesWidget: (v, m) =>
-                  Text('${v.toInt()}%', style: const TextStyle(fontSize: 9)),
-            ),
-          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 22,
-              // Adjust interval so labels don't crowd on short durations
-              interval: maxX > 2 ? 2 : maxX / 3,
+              // 3. DYNAMIC INTERVAL: Divide the X-axis into 4 equal segments
+              interval: dynamicMaxX / 4,
               getTitlesWidget: (v, m) {
-                // If duration is 0.5 (30 mins) and useMinutes is true,
-                // you might need to multiply v by 60 for the label.
-                String label = useMinutes
-                    ? '${(v * 60).toInt()}m'
-                    : '${v.toInt()}hr';
-                return Text(label, style: const TextStyle(fontSize: 9));
+                // Convert minutes to a readable format based on length
+                if (dynamicMaxX <= 60) {
+                  return Text(
+                    '${v.toInt()}m',
+                    style: const TextStyle(fontSize: 9),
+                  );
+                } else {
+                  return Text(
+                    '${(v / 60).toStringAsFixed(1)}h',
+                    style: const TextStyle(fontSize: 9),
+                  );
+                }
               },
             ),
           ),
         ),
         gridData: FlGridData(
           show: true,
-          horizontalInterval: 10,
           drawVerticalLine: true,
-          verticalInterval: maxX > 2 ? 2 : maxX / 3,
+          verticalInterval: dynamicMaxX / 4, // Align grid with labels
         ),
         borderData: FlBorderData(
           show: true,
