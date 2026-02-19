@@ -1,4 +1,6 @@
+import 'dart:ui'; // NEW: Required for the frosted glass effect
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // NEW: Required for HapticFeedback
 import 'package:sizer/sizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -48,16 +50,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   Future<void> _handleRegistration() async {
     if (!_formKey.currentState!.validate()) {
+      HapticFeedback.heavyImpact(); // Premium error feedback
       return;
     }
 
     if (!_termsAccepted) {
+      HapticFeedback.heavyImpact();
       _showErrorSnackBar(
         'Please accept the Terms of Service and Privacy Policy',
       );
       return;
     }
 
+    HapticFeedback.lightImpact();
     setState(() => _isLoading = true);
 
     try {
@@ -91,6 +96,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       });
 
       if (mounted) {
+        HapticFeedback.mediumImpact(); // Success feedback
         _showSuccessDialog();
       }
     } on AuthException catch (e) {
@@ -119,35 +125,72 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
   }
 
+  // REFACTORED: Premium Dark Mode Success Dialog
   void _showSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        // ... (keep your existing styling code) ...
+        backgroundColor: Colors.grey[900], // Dark premium background
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ... (keep your existing icon and text widgets) ...
+            Container(
+              padding: EdgeInsets.all(4.w),
+              decoration: BoxDecoration(
+                color: Colors.greenAccent.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: CustomIconWidget(
+                iconName: 'check_circle',
+                color: Colors.greenAccent[400],
+                size: 12.w,
+              ),
+            ),
             SizedBox(height: 3.h),
-
-            // THE NAVIGATION BUTTON
+            Text(
+              'Account Created!',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 1.h),
+            Text(
+              'Your farmer profile is ready.',
+              style: TextStyle(color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 4.h),
             SizedBox(
               width: double.infinity,
+              height: 6.h,
               child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 onPressed: () {
-                  // 1. Close the Dialog popup
+                  HapticFeedback.lightImpact();
                   Navigator.of(context).pop();
-
-                  // 2. Navigate to Dashboard and remove back history
                   Navigator.pushNamedAndRemoveUntil(
                     context,
-                    '/dashboard-screen', // Make sure this matches your routes name exactly
-                    (Route<dynamic> route) =>
-                        false, // This condition removes all previous routes
+                    '/dashboard-screen',
+                    (Route<dynamic> route) => false,
                   );
                 },
-                child: const Text('Get Started'),
+                child: const Text(
+                  'Get Started',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
             ),
           ],
@@ -156,30 +199,26 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     );
   }
 
+  // REFACTORED: Dark Mode SnackBar
   void _showErrorSnackBar(String message) {
+    HapticFeedback.heavyImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            CustomIconWidget(
-              iconName: 'error',
-              color: Theme.of(context).colorScheme.onError,
-              size: 5.w,
-            ),
+            Icon(Icons.error_outline, color: Colors.redAccent, size: 5.w),
             SizedBox(width: 3.w),
             Expanded(
               child: Text(
                 message,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onError,
-                ),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               ),
             ),
           ],
         ),
-        backgroundColor: Theme.of(context).colorScheme.error,
+        backgroundColor: Colors.red[900]?.withOpacity(0.9),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2.w)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: EdgeInsets.all(4.w),
       ),
     );
@@ -190,98 +229,116 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // Background Image
-            Positioned.fill(
-              child: Opacity(
-                opacity: 0.05,
-                child: CustomImageWidget(
-                  imageUrl:
-                      'https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800',
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                  semanticLabel:
-                      'Rice field with green rice plants growing in rows under sunlight',
+      extendBodyBehindAppBar: true, // Let background bleed under top area
+      body: Stack(
+        children: [
+          // 1. Premium Dark Background
+          Positioned.fill(
+            child: Image.asset(
+              'assets/login_background.jpg', // Re-using the login background
+              fit: BoxFit.cover,
+            ),
+          ),
+          
+          // 2. Dark Overlay
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.5),
+                    Colors.black.withOpacity(0.85),
+                  ],
                 ),
               ),
             ),
+          ),
 
-            // Main Content
-            Column(
+          // 3. Main Content
+          SafeArea(
+            child: Column(
               children: [
-                // App Bar with Back Button
+                // Refactored Back Button (White/Glassy)
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
                   child: Row(
                     children: [
                       IconButton(
-                        icon: CustomIconWidget(
-                          iconName: 'arrow_back',
-                          color: theme.colorScheme.onSurface,
-                          size: 6.w,
-                        ),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
                         onPressed: () {
-                          Navigator.pushReplacementNamed(
-                            context,
-                            '/login-screen',
-                          );
+                          HapticFeedback.lightImpact();
+                          Navigator.pushReplacementNamed(context, '/login-screen');
                         },
                       ),
-                      Text('Back to Login', style: theme.textTheme.titleMedium),
+                      Text(
+                        'Back to Login', 
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
 
-                // Scrollable Form Content
+                // Scrollable Form Container
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: 5.w),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 2.h),
+                    padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                        child: Container(
+                          padding: EdgeInsets.all(6.w),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: Colors.white.withOpacity(0.2)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // The child widgets
+                              const RegistrationHeaderWidget(),
+                              SizedBox(height: 4.h),
 
-                        // Header Section
-                        const RegistrationHeaderWidget(),
-                        SizedBox(height: 4.h),
+                              RegistrationFormWidget(
+                                formKey: _formKey,
+                                nameController: _nameController,
+                                emailController: _emailController,
+                                phoneController: _phoneController,
+                                passwordController: _passwordController,
+                                selectedLocation: _selectedLocation,
+                                onLocationChanged: (value) {
+                                  setState(() => _selectedLocation = value);
+                                },
+                                termsAccepted: _termsAccepted,
+                                onTermsChanged: (value) {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _termsAccepted = value ?? false);
+                                },
+                              ),
+                              SizedBox(height: 4.h),
 
-                        // Registration Form
-                        RegistrationFormWidget(
-                          formKey: _formKey,
-                          nameController: _nameController,
-                          emailController: _emailController,
-                          phoneController: _phoneController,
-                          passwordController: _passwordController,
-                          selectedLocation: _selectedLocation,
-                          onLocationChanged: (value) {
-                            setState(() => _selectedLocation = value);
-                          },
-                          termsAccepted: _termsAccepted,
-                          onTermsChanged: (value) {
-                            setState(() => _termsAccepted = value ?? false);
-                          },
+                              RegistrationButtonWidget(
+                                isLoading: _isLoading,
+                                isEnabled: _isFormValid,
+                                onPressed: _handleRegistration,
+                              ),
+                            ],
+                          ),
                         ),
-                        SizedBox(height: 4.h),
-
-                        // Registration Button
-                        RegistrationButtonWidget(
-                          isLoading: _isLoading,
-                          isEnabled: _isFormValid,
-                          onPressed: _handleRegistration,
-                        ),
-                        SizedBox(height: 4.h),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

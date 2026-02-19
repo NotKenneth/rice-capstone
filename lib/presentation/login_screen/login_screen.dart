@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; 
 import 'package:sizer/sizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -30,9 +32,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) {
+      HapticFeedback.heavyImpact(); // Haptic error feedback
       return;
     }
 
+    HapticFeedback.lightImpact(); // Haptic tap feedback
     setState(() => _isLoading = true);
 
     try {
@@ -43,6 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (res.user != null) {
         if (mounted) {
+          HapticFeedback.mediumImpact(); // Success feedback
           Navigator.pushNamedAndRemoveUntil(
             context,
             '/dashboard-screen',
@@ -69,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showErrorDialog(String title, String message) {
+    HapticFeedback.heavyImpact();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -89,56 +95,18 @@ class _LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: SafeArea(
-        child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight:
-                    MediaQuery.of(context).size.height -
-                    MediaQuery.of(context).padding.top -
-                    MediaQuery.of(context).padding.bottom,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  children: [
-                    _buildHeader(theme),
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6.w),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [_buildLoginForm(theme)],
-                        ),
-                      ),
-                    ),
-                    _buildRegistrationLink(theme),
-                    SizedBox(height: 4.h),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(ThemeData theme) {
-    return Container(
-      width: double.infinity,
-      height: 40.h,
-      child: Stack(
+      // We use a Stack to put the image behind everything
+      body: Stack(
         children: [
-          // Background Image replacement
+          // 1. Full Bleed Background Image
           Positioned.fill(
             child: Image.asset(
-              'assets/login_background.jpg', 
+              'assets/login_background.jpg',
               fit: BoxFit.cover,
             ),
           ),
-          // Dark Overlay for readability
+          
+          // 2. Subtle Dark Gradient Overlay to ensure text readability
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -146,217 +114,320 @@ class _LoginScreenState extends State<LoginScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.3),
-                    Colors.black.withOpacity(0.6),
+                    Colors.black.withOpacity(0.4),
+                    Colors.black.withOpacity(0.7),
                   ],
                 ),
               ),
             ),
           ),
-          Center(
+
+          // 3. Main Content
+          SafeArea(
+            child: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.of(context).size.height -
+                        MediaQuery.of(context).padding.top -
+                        MediaQuery.of(context).padding.bottom,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(height: 2.h),
+                          _buildEnvironmentalData(), // New Live Data Widget
+                          SizedBox(height: 4.h),
+                          _buildHeaderItems(theme),
+                          const Spacer(),
+                          _buildGlassLoginForm(theme), // Glassmorphic Form
+                          SizedBox(height: 3.h),
+                          _buildRegistrationLink(theme),
+                          SizedBox(height: 4.h),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- NEW: Glanceable Environmental Data ---
+  Widget _buildEnvironmentalData() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        _buildGlassChip(Icons.thermostat, '32°C'),
+        SizedBox(width: 2.w),
+        _buildGlassChip(Icons.water_drop_outlined, '14% MC'),
+      ],
+    );
+  }
+
+  Widget _buildGlassChip(IconData icon, String label) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: Colors.white, size: 16),
+              SizedBox(width: 1.w),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- REFACTORED: Header Items ---
+  Widget _buildHeaderItems(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'DryCe Monitor',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 36,
+            letterSpacing: 1.2,
+          ),
+        ),
+        SizedBox(height: 0.5.h),
+        Text(
+          'Rice Drying Monitoring System',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 16,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- REFACTORED: Glassmorphic Form ---
+  Widget _buildGlassLoginForm(ThemeData theme) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: EdgeInsets.all(6.w),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1), // Frosted look
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
+          ),
+          child: Form(
+            key: _formKey,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(height: 2.h),
                 Text(
-                  'DryCe Monitor',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    color: Colors.white,
+                  'Welcome Back',
+                  style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
-                    fontSize: 40,
+                    color: Colors.white,
+                    fontSize: 24,
                   ),
                 ),
                 SizedBox(height: 1.h),
                 Text(
-                  'Rice Drying Monitoring System',
+                  'Sign in to access sensor arrays',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 17,
+                    color: Colors.white.withOpacity(0.7),
+                  ),
+                ),
+                SizedBox(height: 4.h),
+
+                // Note: Consider styling these TextFormFields with a dark/transparent theme 
+                // in your app theme, or override the InputDecoration here for white text.
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _glassInputDecoration('Email', 'person'),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 2.h),
+
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: !_isPasswordVisible,
+                  textInputAction: TextInputAction.done,
+                  style: const TextStyle(color: Colors.white),
+                  onFieldSubmitted: (_) => _handleLogin(),
+                  decoration: _glassInputDecoration('Password', 'lock').copyWith(
+                    suffixIcon: IconButton(
+                      icon: CustomIconWidget(
+                        iconName: _isPasswordVisible ? 'visibility' : 'visibility_off',
+                        size: 24,
+                        color: Colors.white.withOpacity(0.7),
+                      ),
+                      onPressed: () {
+                        HapticFeedback.lightImpact(); // Satisfying toggle tap
+                        setState(() => _isPasswordVisible = !_isPasswordVisible);
+                      },
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your password';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 1.h),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Feature coming soon')),
+                      );
+                    },
+                    child: Text(
+                      'Forgot Password?',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.primaryContainer, // Use a bright accent
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 3.h),
+
+                SizedBox(
+                  height: 6.h,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleLogin,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            'Login',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildLoginForm(ThemeData theme) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Welcome Back!',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 30,
-              color: theme.colorScheme.onSurface,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 1.h),
-          Text(
-            'Sign in to monitor your rice drying process',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
-              fontSize: 17,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 4.h),
-
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              labelText: 'Email',
-              hintText: 'Enter your email',
-              prefixIcon: Padding(
-                padding: EdgeInsets.all(3.w),
-                child: CustomIconWidget(
-                  iconName: 'person',
-                  size: 24,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter your email';
-              }
-              return null;
-            },
-          ),
-          SizedBox(height: 2.h),
-
-          TextFormField(
-            controller: _passwordController,
-            obscureText: !_isPasswordVisible,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _handleLogin(),
-            decoration: InputDecoration(
-              labelText: 'Password',
-              hintText: 'Enter your password',
-              prefixIcon: Padding(
-                padding: EdgeInsets.all(3.w),
-                child: CustomIconWidget(
-                  iconName: 'lock',
-                  size: 24,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-              suffixIcon: IconButton(
-                icon: CustomIconWidget(
-                  iconName: _isPasswordVisible
-                      ? 'visibility'
-                      : 'visibility_off',
-                  size: 24,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-                onPressed: () {
-                  setState(() => _isPasswordVisible = !_isPasswordVisible);
-                },
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your password';
-              }
-              return null;
-            },
-          ),
-          SizedBox(height: 1.h),
-
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Feature coming soon')),
-                );
-              },
-              child: Text(
-                'Forgot Password?',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-          SizedBox(height: 3.h),
-
-          SizedBox(
-            height: 6.h,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleLogin,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: _isLoading
-                  ? SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          theme.colorScheme.onPrimary,
-                        ),
-                      ),
-                    )
-                  : Text(
-                      'Login',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-            ),
-          ),
-        ],
+  // Helper for input decoration to match the glassmorphic dark vibe
+  InputDecoration _glassInputDecoration(String hint, String iconName) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+      filled: true,
+      fillColor: Colors.black.withOpacity(0.2),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white),
+      ),
+      prefixIcon: Padding(
+        padding: EdgeInsets.all(3.w),
+        child: CustomIconWidget(
+          iconName: iconName,
+          size: 24,
+          color: Colors.white.withOpacity(0.7),
+        ),
       ),
     );
   }
 
   Widget _buildRegistrationLink(ThemeData theme) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 6.w),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'New User? ',
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'New User? ',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: Colors.white.withOpacity(0.8),
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.pushNamed(context, '/registration-screen');
+          },
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.symmetric(horizontal: 2.w),
+            minimumSize: const Size(0, 0),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Text(
+            'Sign Up',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+              color: theme.colorScheme.primary, // Ensure this is readable against dark background
+              fontWeight: FontWeight.w800,
             ),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pushNamed(context, '/registration-screen');
-            },
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.symmetric(horizontal: 2.w),
-              minimumSize: const Size(0, 0),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              'Sign Up',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
