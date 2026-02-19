@@ -17,55 +17,70 @@ class MoistureTrendChartWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // Determine the maximum time reached to scale the X-axis
+    double maxTime = 30.0; // Start with at least a 30-min window
+    for (var sensor in chartData) {
+      if (sensor['maxMinute'] != null && sensor['maxMinute'] > maxTime) {
+        maxTime = (sensor['maxMinute'] as num).toDouble();
+      }
+    }
+
+    // Round maxX up to the next 30-minute interval for clean legends
+    double maxX = ((maxTime / 30).ceil() * 30.0);
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.only(right: 20, left: 10, top: 20, bottom: 10),
       child: SizedBox(
         height: 300,
         child: LineChart(
           LineChartData(
-            // LOCK AXIS: This prevents lines from overlapping or going off-screen
-            minX: 1,
-            maxX: 12,
+            // FORCE START AT LEFT
+            minX: 0,
+            maxX: maxX,
             minY: 5,
-            maxY: 40,
+            maxY: 35,
 
-            // BORDER: Adds a clean frame around the graph
+            // Clip data to prevent lines from bleeding into legends
+            clipData: const FlClipData.all(),
+
             borderData: FlBorderData(
               show: true,
-              border: Border.all(color: theme.dividerColor, width: 1),
+              border: Border(
+                bottom: BorderSide(color: theme.dividerColor, width: 1),
+                left: BorderSide(color: theme.dividerColor, width: 1),
+              ),
             ),
 
-            // LEGENDS: Defines the X and Y axis labels
             titlesData: FlTitlesData(
               show: true,
-              // Y-AXIS (Moisture %)
-              leftTitles: AxisTitles(
+              // X-AXIS: Show labels every 30 minutes
+              bottomTitles: AxisTitles(
                 axisNameWidget: const Text(
-                  "Moisture %",
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  "Elapsed Time (Minutes)",
+                  style: TextStyle(fontSize: 10),
                 ),
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 30, // <--- FORCES 30 MINUTE STEPS
+                  reservedSize: 35,
+                  getTitlesWidget: (value, meta) {
+                    return SideTitleWidget(
+                      axisSide: meta.axisSide,
+                      child: Text(
+                        '${value.toInt()}m',
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 40,
-                  interval: 5, // Shows 5, 10, 15... 40
+                  interval: 5,
                   getTitlesWidget: (value, meta) => Text(
                     '${value.toInt()}%',
-                    style: const TextStyle(fontSize: 10),
-                  ),
-                ),
-              ),
-              // X-AXIS (Time in Hours)
-              bottomTitles: AxisTitles(
-                axisNameWidget: const Text(
-                  "Time (Hours)",
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                ),
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 30,
-                  interval: 2, // Shows 2h, 4h, 6h... 12h
-                  getTitlesWidget: (value, meta) => Text(
-                    '${value.toInt()}h',
                     style: const TextStyle(fontSize: 10),
                   ),
                 ),
@@ -78,12 +93,17 @@ class MoistureTrendChartWidget extends StatelessWidget {
               ),
             ),
 
-            // GRID: Helps distinguish values
             gridData: FlGridData(
               show: true,
+              drawVerticalLine: true,
               horizontalInterval: 5,
+              verticalInterval: 30, // Grid lines align with 30m labels
               getDrawingHorizontalLine: (value) => FlLine(
-                color: theme.dividerColor.withOpacity(0.1),
+                color: theme.dividerColor.withOpacity(0.05),
+                strokeWidth: 1,
+              ),
+              getDrawingVerticalLine: (value) => FlLine(
+                color: theme.dividerColor.withOpacity(0.05),
                 strokeWidth: 1,
               ),
             ),
@@ -91,28 +111,27 @@ class MoistureTrendChartWidget extends StatelessWidget {
             lineBarsData: varieties
                 .where((v) => selectedVarieties.contains(v['name']))
                 .map((variety) {
-                  final varietyData = chartData
-                      .where((d) => d['variety'] == variety['name'])
-                      .toList();
+                  // Find the data specific to this sensor/variety
+                  // Based on our _fetchAllSensorsHistory logic
+                  final sensorData = chartData.firstWhere(
+                    (d) =>
+                        d['variety'].toString().contains(variety['name']) ||
+                        d['variety'].toString().contains(
+                          selectedVarieties.indexOf(variety['name']).toString(),
+                        ),
+                    orElse: () => {'chartData': []},
+                  );
 
                   return LineChartBarData(
-                    spots: varietyData
-                        .map(
-                          (d) => FlSpot(
-                            (d['hour'] as num).toDouble(),
-                            (d['moisture'] as num).toDouble(),
-                          ),
-                        )
-                        .toList(),
+                    spots: (sensorData['chartData'] as List).map((d) {
+                      return FlSpot(d['minute'], d['moisture']);
+                    }).toList(),
                     isCurved: true,
                     color: variety['color'] as Color,
-                    barWidth: 3,
-                    dotData: const FlDotData(
-                      show: false,
-                    ), // Disable dots to prevent overlapping clutter
-                    belowBarData: BarAreaData(
-                      show: false,
-                    ), // Disable shading to keep lines distinct
+                    barWidth: 2.5,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(show: false),
                   );
                 })
                 .toList(),

@@ -166,14 +166,14 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
     bool useMinutes,
   ) {
     final theme = Theme.of(context);
-    final spots = data
-        .map(
-          (d) => FlSpot(
-            (d['hour'] as num).toDouble(),
-            (d['moisture'] as num).toDouble(),
-          ),
-        )
-        .toList();
+    // Update this line in your _buildThumbnailChart method:
+    final spots = data.map((d) {
+      // Use ?? 0 to handle null values safely
+      final x = (d['minute'] ?? d['hour'] ?? 0) as num;
+      final y = (d['moisture'] ?? 0) as num;
+
+      return FlSpot(x.toDouble(), y.toDouble());
+    }).toList();
 
     return LineChart(
       LineChartData(

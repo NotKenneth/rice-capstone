@@ -1,5 +1,6 @@
 import 'package:dryce_monitoring_system/widgets/custom_bottom_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_export.dart';
@@ -21,8 +22,8 @@ class AnalysisScreen extends StatefulWidget {
 
 class _AnalysisScreenState extends State<AnalysisScreen> {
   bool _isLoading = true;
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 7));
-  DateTime _endDate = DateTime.now();
+  DateTime _selectedDate = DateTime.now();
+
   List<String> _selectedVarieties = [];
   List<Map<String, dynamic>> _sensorHistoricalData = [];
 
@@ -45,10 +46,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   // Master load function
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
-
-    // Fetch real history for the 4 sensors
     final history = await _fetchAllSensorsHistory();
-
     setState(() {
       _sensorHistoricalData = history;
       _isLoading = false;
@@ -64,33 +62,78 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       'MSENSOR-004',
     ];
 
+    final startOfDay = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      0,
+      0,
+      0,
+    );
+    final endOfDay = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      23,
+      59,
+      59,
+    );
+
     for (String id in sensorIds) {
-      final response = await Supabase.instance.client
-          .from('sensor_history')
-          .select('moisture_percentage, recorded_at')
-          .eq('sensor_id', id)
-          .order('recorded_at', ascending: false)
-          .limit(15);
+      try {
+        // 1. Fetch the Rice Variety name from the 'sensors' table for this specific ID
+        final sensorInfo = await Supabase.instance.client
+            .from('sensors')
+            .select('rice_variety')
+            .eq('id', id)
+            .single();
 
-      List<Map<String, dynamic>> rawChartData = (response as List).reversed.map(
-        (data) {
-          DateTime time = DateTime.parse(data['recorded_at']);
-          return {
-            'hour': time.hour.toDouble() + (time.minute / 60),
-            'moisture': data['moisture_percentage'],
-          };
-        },
-      ).toList();
+        final String riceVariety =
+            sensorInfo['rice_variety'] ?? 'Unknown Variety';
 
-      if (rawChartData.isNotEmpty) {
-        finalHistory.add({
-          'variety': 'Sensor Unit $id', // Using sensor ID as title
-          'date': 'Last 15 readings',
-          'duration': 'Live',
-          'initialMoisture': rawChartData.first['moisture'].toStringAsFixed(1),
-          'finalMoisture': rawChartData.last['moisture'].toStringAsFixed(1),
-          'chartData': rawChartData,
-        });
+        // 2. Fetch the historical logs
+        final response = await Supabase.instance.client
+            .from('sensor_history')
+            .select('moisture_percentage, recorded_at')
+            .eq('sensor_id', id)
+            .gte('recorded_at', startOfDay.toIso8601String())
+            .lte('recorded_at', endOfDay.toIso8601String())
+            .order('recorded_at', ascending: true);
+
+        final List rawList = response as List;
+
+        if (rawList.isNotEmpty) {
+          DateTime sessionStart = DateTime.parse(rawList.first['recorded_at']);
+          DateTime sessionEnd = DateTime.parse(rawList.last['recorded_at']);
+          final duration = sessionEnd.difference(sessionStart);
+          final totalMinutes = duration.inMinutes;
+
+          List<Map<String, dynamic>> processedChartData = rawList.map((data) {
+            DateTime time = DateTime.parse(data['recorded_at']);
+            return {
+              'minute': time.difference(sessionStart).inSeconds / 60.0,
+              'moisture': (data['moisture_percentage'] as num? ?? 0.0)
+                  .toDouble(),
+            };
+          }).toList();
+
+          finalHistory.add({
+            // Combined variety name and ID for the header
+            'variety': '$riceVariety ($id)',
+            'pureVariety': riceVariety,
+            'sensorId': id,
+            'date': DateFormat('MMMM dd, yyyy').format(_selectedDate),
+            'duration': '${totalMinutes ~/ 60}h ${totalMinutes % 60}m',
+            'initialMoisture': processedChartData.first['moisture']
+                .toStringAsFixed(1),
+            'finalMoisture': processedChartData.last['moisture']
+                .toStringAsFixed(1),
+            'chartData': processedChartData,
+            'maxMinute': totalMinutes.toDouble(),
+          });
+        }
+      } catch (e) {
+        debugPrint("Error fetching history for $id: $e");
       }
     }
     return finalHistory;
@@ -103,6 +146,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Analysis',
+        showNotifications: false,
         showSyncStatus: true,
         syncStatus: true,
         actions: [
@@ -117,10 +161,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           : CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
-                  child: DateRangeSelectorWidget(
-                    onDateRangeChanged: (s, e) => _loadAllData(),
-                    initialStartDate: _startDate,
-                    initialEndDate: _endDate,
+                  child: DateSelectorWidget(
+                    initialDate: _selectedDate,
+                    onDateChanged: (newDate) {
+                      setState(() => _selectedDate = newDate);
+                      _loadAllData();
+                    },
                   ),
                 ),
                 // Historical Sensors Section

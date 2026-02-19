@@ -11,6 +11,8 @@ import './widgets/help_support_section_widget.dart';
 import './widgets/profile_header_widget.dart';
 import './widgets/settings_list_item_widget.dart';
 import './widgets/theme_toggle_widget.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 
 /// Profile screen for user account management and app preferences
 class ProfileScreen extends StatefulWidget {
@@ -21,29 +23,134 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _userName = 'John Farmer';
+  String _userName = 'Loading...';
+  String? _avatarUrl;
   bool _isDarkMode = false;
   bool _isExporting = false;
   bool _isOffline = false;
+  bool _isLoadingProfile = true;
 
   @override
   void initState() {
     super.initState();
     _loadUserPreferences();
+    _fetchUserProfile();
+  }
+
+  Future<void> _fetchUserProfile() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final data = await Supabase.instance.client
+            .from('profiles')
+            .select('first_name, last_name, avatar_url') // Added avatar_url
+            .eq('id', user.id)
+            .single();
+
+        if (mounted) {
+          setState(() {
+            String first = data['first_name'] ?? "";
+            String last = data['last_name'] ?? "";
+            _userName = "$first $last".trim();
+            _avatarUrl = data['avatar_url']; // Store the URL
+
+            if (_userName.isEmpty) _userName = "Farmer";
+            _isLoadingProfile = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching profile: $e");
+      if (mounted) setState(() => _isLoadingProfile = false);
+    }
+  }
+
+  Future<void> _handleImageUpload() async {
+    final picker = ImagePicker();
+    // 1. Pick an image from gallery
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70, // Compress for faster upload
+    );
+
+    if (image == null) return;
+
+    setState(
+      () => _isExporting = true,
+    ); // Reusing export bool as a general loader
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      // 2. Define storage path
+      final fileName = 'avatar_${user.id}.jpg';
+      final bytes = await image.readAsBytes();
+
+      // 3. Upload to Supabase Bucket (Ensure you have a bucket named 'avatars')
+      await Supabase.instance.client.storage
+          .from('avatars')
+          .uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: const FileOptions(
+              upsert: true,
+              contentType: 'image/jpeg', // Force the content type
+            ),
+          );
+
+      // 4. Get Public URL
+      final String publicUrl = Supabase.instance.client.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+
+      // 5. Update Profile Table
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'avatar_url': publicUrl})
+          .eq('id', user.id);
+
+      setState(() {
+        _avatarUrl = publicUrl;
+      });
+
+      _showSnackBar('Profile picture updated!');
+    } catch (e) {
+      debugPrint("Upload error: $e");
+      _showSnackBar('Failed to upload image');
+    } finally {
+      setState(() => _isExporting = false);
+    }
+  }
+
+  Future<void> _handleNameChange(String newName) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    // Optional: Logic to split name back into first/last for the DB
+    List<String> parts = newName.split(' ');
+    String firstName = parts[0];
+    String lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+
+    try {
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'first_name': firstName, 'last_name': lastName})
+          .eq('id', user.id);
+
+      setState(() {
+        _userName = newName;
+      });
+      _showSnackBar('Name updated in cloud successfully');
+    } catch (e) {
+      _showSnackBar('Failed to update name: $e');
+    }
   }
 
   Future<void> _loadUserPreferences() async {
     // Simulate loading user preferences
     await Future.delayed(const Duration(milliseconds: 500));
     // In production, load from SharedPreferences or secure storage
-  }
-
-  void _handleNameChange(String newName) {
-    setState(() {
-      _userName = newName;
-    });
-    _showSnackBar('Name updated successfully');
-    // In production, save to backend and local storage
   }
 
   void _handleThemeToggle(bool isDark) {
@@ -131,13 +238,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _performLogout() {
-    // Clear user session and navigate to login
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      '/login-screen',
-      (route) => false,
-    );
+  void _performLogout() async {
+    // UPDATED: Properly sign out from Supabase
+    await Supabase.instance.client.auth.signOut();
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login-screen',
+        (route) => false,
+      );
+    }
   }
 
   void _showSnackBar(String message) {
@@ -232,6 +342,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: CustomAppBar(
         title: 'Profile',
         variant: CustomAppBarVariant.standard,
+        showNotifications: false,
         showSyncStatus: true,
         syncStatus: _isOffline ? null : true,
       ),
@@ -243,7 +354,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Profile header with avatar and editable name
               ProfileHeaderWidget(
                 userName: _userName,
+                avatarUrl: _avatarUrl,
                 onNameChanged: _handleNameChange,
+                onImageTap: _handleImageUpload,
               ),
 
               SizedBox(height: 2.h),

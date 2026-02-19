@@ -66,7 +66,8 @@ class RiceVarietySelectorWidget extends StatelessWidget {
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: selectedVariety,
+                value: selectedVariety.isEmpty ? null : selectedVariety,
+                hint: const Text("Select Variety"),
                 isExpanded: true,
                 icon: CustomIconWidget(
                   iconName: 'arrow_drop_down',

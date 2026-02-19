@@ -66,9 +66,16 @@ class _SensorCardWidgetState extends State<SensorCardWidget> {
 
   void _updateElapsed() {
     if (widget.startTime != null) {
-      setState(
-        () => _elapsedTime = DateTime.now().difference(widget.startTime!),
-      );
+      final DateTime nowUtc = DateTime.now().toUtc();
+      final DateTime startUtc = widget.startTime!.toUtc();
+
+      setState(() {
+        if (nowUtc.isBefore(startUtc)) {
+          _elapsedTime = Duration.zero;
+        } else {
+          _elapsedTime = nowUtc.difference(startUtc);
+        }
+      });
     }
   }
 
@@ -151,8 +158,7 @@ class _SensorCardWidgetState extends State<SensorCardWidget> {
               ],
             ),
           ),
-          const Spacer(),
-          _actionButton(isOffline),
+          const SizedBox(height: 12),
         ],
       ),
     );
@@ -166,65 +172,15 @@ class _SensorCardWidgetState extends State<SensorCardWidget> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        widget.isActive ? _formatDuration(_elapsedTime) : "00:00:00",
+        widget.isActive ? _formatDuration(_elapsedTime) : "INACTIVE",
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
-          color: widget.isActive ? color : Colors.grey,
+          color: widget.isActive ? color : Colors.red,
         ),
       ),
     );
-  }
-
-  Widget _actionButton(bool offline) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: offline ? null : () => _togglePower(),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: widget.isActive
-                ? Colors.redAccent
-                : Colors.green[700],
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: Text(
-            widget.isActive ? "STOP" : "START",
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _togglePower() async {
-    final bool starting = !widget.isActive;
-
-    // We try to match the ID as a dynamic value.
-    // If your DB ID is an integer, int.tryParse(widget.sensorId) is better.
-    final dynamic dbId = int.tryParse(widget.sensorId) ?? widget.sensorId;
-
-    try {
-      await Supabase.instance.client
-          .from('sensors')
-          .update({
-            'is_active': starting,
-            'last_started_at': starting
-                ? DateTime.now().toIso8601String()
-                : null,
-          })
-          .eq('id', dbId); // Use the parsed ID
-
-      debugPrint("Successfully toggled $dbId to $starting");
-    } catch (e) {
-      debugPrint("Single update error for $dbId: $e");
-    }
   }
 
   Color _getVarietyColor(String v) {
