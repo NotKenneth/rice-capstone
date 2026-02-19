@@ -7,12 +7,16 @@ import '../../../widgets/custom_icon_widget.dart';
 /// Profile header widget displaying user avatar and editable name
 class ProfileHeaderWidget extends StatefulWidget {
   final String userName;
+  final String? avatarUrl; // Changed to nullable String
   final Function(String) onNameChanged;
+  final VoidCallback onImageTap; // Added callback for image upload
 
   const ProfileHeaderWidget({
     super.key,
     required this.userName,
+    this.avatarUrl,
     required this.onNameChanged,
+    required this.onImageTap,
   });
 
   @override
@@ -27,6 +31,14 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.userName);
+  }
+
+  @override
+  void didUpdateWidget(ProfileHeaderWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.userName != oldWidget.userName && !_isEditing) {
+      _nameController.text = widget.userName;
+    }
   }
 
   @override
@@ -55,7 +67,7 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
         color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.shadow,
+            color: theme.colorScheme.shadow.withOpacity(0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -63,21 +75,47 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
       ),
       child: Column(
         children: [
-          // Avatar placeholder
-          Container(
-            width: 25.w,
-            height: 25.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: theme.colorScheme.primary.withValues(alpha: 0.1),
-              border: Border.all(color: theme.colorScheme.primary, width: 2),
-            ),
-            child: Center(
-              child: CustomIconWidget(
-                iconName: 'person',
-                size: 12.w,
-                color: theme.colorScheme.primary,
-              ),
+          // Avatar with Upload Trigger
+          GestureDetector(
+            onTap: widget.onImageTap,
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 12.5.w,
+                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                  backgroundImage:
+                      widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty
+                      ? NetworkImage(widget.avatarUrl!)
+                      : null,
+                  child: widget.avatarUrl == null || widget.avatarUrl!.isEmpty
+                      ? CustomIconWidget(
+                          iconName: 'person',
+                          size: 12.w,
+                          color: theme.colorScheme.primary,
+                        )
+                      : null,
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.surface,
+                        width: 2,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.camera_alt,
+                      size: 4.w,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           SizedBox(height: 2.h),
@@ -93,6 +131,7 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
                         controller: _nameController,
                         textAlign: TextAlign.center,
                         style: theme.textTheme.titleLarge,
+                        autofocus: true,
                         decoration: InputDecoration(
                           contentPadding: EdgeInsets.symmetric(
                             horizontal: 2.w,
@@ -130,18 +169,16 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
                       CustomIconWidget(
                         iconName: 'edit',
                         size: 5.w,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.6,
-                        ),
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
                       ),
                     ],
                   ),
                 ),
           SizedBox(height: 1.h),
           Text(
-            'Long press name to edit',
+            'Tap photo to change • Long press name to edit',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
         ],

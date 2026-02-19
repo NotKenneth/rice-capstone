@@ -15,11 +15,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool centerTitle;
   final Color? backgroundColor;
   final double elevation;
+  final bool showNotifications;
 
-  /// Number of unread notifications to show in the badge
   final int unreadNotificationCount;
-
-  /// Callback when the notification bell is tapped
   final VoidCallback? onNotificationTap;
 
   const CustomAppBar({
@@ -37,6 +35,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.elevation = 2.0,
     this.unreadNotificationCount = 0,
     this.onNotificationTap,
+    this.showNotifications = false,
   });
 
   @override
@@ -46,7 +45,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
     return AppBar(
       title: _buildTitle(context),
       leading: _buildLeading(context),
@@ -124,12 +122,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     }
 
     // Notification Bell with Badge
-    actionWidgets.add(
-      _NotificationBell(
-        count: unreadNotificationCount,
-        onTap: onNotificationTap,
-      ),
-    );
+
+    if (showNotifications) {
+      actionWidgets.add(
+        _NotificationBell(
+          count: unreadNotificationCount,
+          onTap: onNotificationTap,
+        ),
+      );
+    }
 
     if (variant == CustomAppBarVariant.withSearch && onSearch != null) {
       actionWidgets.add(

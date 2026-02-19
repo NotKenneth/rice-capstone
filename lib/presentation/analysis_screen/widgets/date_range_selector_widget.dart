@@ -4,117 +4,69 @@ import 'package:intl/intl.dart';
 import '../../../widgets/custom_icon_widget.dart';
 
 /// Date range selector widget for filtering analysis data
-class DateRangeSelectorWidget extends StatefulWidget {
-  final Function(DateTime startDate, DateTime endDate) onDateRangeChanged;
-  final DateTime? initialStartDate;
-  final DateTime? initialEndDate;
+class DateSelectorWidget extends StatefulWidget {
+  final Function(DateTime selectedDate) onDateChanged;
+  final DateTime? initialDate;
 
-  const DateRangeSelectorWidget({
+  const DateSelectorWidget({
     super.key,
-    required this.onDateRangeChanged,
-    this.initialStartDate,
-    this.initialEndDate,
+    required this.onDateChanged,
+    this.initialDate,
   });
 
   @override
-  State<DateRangeSelectorWidget> createState() =>
-      _DateRangeSelectorWidgetState();
+  State<DateSelectorWidget> createState() => _DateSelectorWidgetState();
 }
 
-class _DateRangeSelectorWidgetState extends State<DateRangeSelectorWidget> {
-  late DateTime _startDate;
-  late DateTime _endDate;
-  final DateFormat _dateFormat = DateFormat('MM/dd/yyyy');
+class _DateSelectorWidgetState extends State<DateSelectorWidget> {
+  late DateTime _selectedDate;
+  final DateFormat _dateFormat = DateFormat('MMMM dd, yyyy');
 
   @override
   void initState() {
     super.initState();
-    _endDate = widget.initialEndDate ?? DateTime.now();
-    _startDate =
-        widget.initialStartDate ?? _endDate.subtract(const Duration(days: 7));
+    _selectedDate = widget.initialDate ?? DateTime.now();
   }
 
-  Future<void> _selectDateRange(BuildContext context) async {
-    final theme = Theme.of(context);
-
-    final DateTimeRange? picked = await showDateRangePicker(
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
       context: context,
+      initialDate: _selectedDate,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-      builder: (context, child) {
-        return Theme(
-          data: theme.copyWith(colorScheme: theme.colorScheme),
-          child: child!,
-        );
-      },
     );
 
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-      });
-      widget.onDateRangeChanged(_startDate, _endDate);
+    if (picked != null && picked != _selectedDate) {
+      setState(() => _selectedDate = picked);
+      widget.onDateChanged(_selectedDate);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CustomIconWidget(
-            iconName: 'calendar_today',
-            color: theme.colorScheme.primary,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _selectDateRange(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(color: theme.colorScheme.outline),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${_dateFormat.format(_startDate)} - ${_dateFormat.format(_endDate)}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    CustomIconWidget(
-                      iconName: 'arrow_drop_down',
-                      color: theme.colorScheme.onSurface,
-                      size: 20,
-                    ),
-                  ],
-                ),
-              ),
+    return GestureDetector(
+      onTap: () => _selectDate(context),
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_month, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Text(
+              _dateFormat.format(_selectedDate),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-          ),
-        ],
+            const Spacer(),
+            const Icon(Icons.arrow_drop_down),
+          ],
+        ),
       ),
     );
   }

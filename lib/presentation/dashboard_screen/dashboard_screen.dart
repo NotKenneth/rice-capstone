@@ -20,9 +20,12 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  String _selectedRiceVariety = 'Basmati';
+  String? _selectedRiceVariety;
   final List<Map<String, dynamic>> _notifications = [];
   bool _isBulkUpdating = false;
+
+  String _fullName = "Farmer";
+  bool _isLoadingProfile = true;
 
   final Stream<List<Map<String, dynamic>>> _sensorStream = Supabase
       .instance
@@ -36,6 +39,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     // NEW: Request permissions for Android 13+ on screen load
     _requestNotificationPermissions();
+    _fetchUserProfile();
+  }
+
+  Future<void> _fetchUserProfile() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final data = await Supabase.instance.client
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', user.id)
+            .single();
+
+        if (mounted) {
+          setState(() {
+            String first = data['first_name'] ?? "";
+            String last = data['last_name'] ?? "";
+
+            _fullName = "$first $last".trim();
+
+            if (_fullName.isEmpty) _fullName = "Farmer";
+
+            _isLoadingProfile = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching profile: $e");
+      if (mounted) setState(() => _isLoadingProfile = false);
+    }
   }
 
   void _requestNotificationPermissions() {
@@ -86,17 +119,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
     List<Map<String, dynamic>> moistureSensors,
     bool activate,
   ) async {
-    if (moistureSensors.isEmpty) {
-      debugPrint("No sensors found for $_selectedRiceVariety");
+    // 1. Validation for Rice Variety
+    if (activate &&
+        (_selectedRiceVariety == null || _selectedRiceVariety!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Please select a Rice Variety before starting."),
+          backgroundColor: Colors.orange[800],
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
 
+    if (moistureSensors.isEmpty) return;
+
+    // 2. Confirmation Dialog
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(activate ? "Start System?" : "Stop System?"),
         content: Text(
-          "This will ${activate ? 'activate' : 'deactivate'} all $_selectedRiceVariety sensors and the system temperature monitor.",
+          activate
+              ? "Activate drying process for $_selectedRiceVariety?"
+              : "Stop all active sensors and save analysis for today?",
         ),
         actions: [
           TextButton(
@@ -118,34 +164,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     setState(() => _isBulkUpdating = true);
     try {
-      // 1. Get IDs for moisture sensors
       final List<String> idsToUpdate = moistureSensors
           .map((s) => s['id'].toString())
           .toList();
+      final String nowIso = DateTime.now().toUtc().toIso8601String();
 
-      debugPrint(
-        "Attempting to update IDs: $idsToUpdate to is_active: $activate",
-      );
-
-      // 3. Perform the update
+      // 3. Update the 'sensors' table status
+      // We update is_active and variety.
       await Supabase.instance.client
           .from('sensors')
           .update({
             'is_active': activate,
-            // Use last_started_at to match your SensorCardWidget logic
-            'last_update': activate ? DateTime.now().toIso8601String() : null,
+            'last_started_at': activate ? nowIso : null,
+            'last_update': nowIso,
+            'rice_variety': activate
+                ? _selectedRiceVariety
+                : _selectedRiceVariety,
           })
           .inFilter('id', idsToUpdate);
 
-      debugPrint("Update successful!");
+      // 4. Record History Snapshot
+      // IMPORTANT: We do this for BOTH Start and Stop.
+      // Start creates the 0-minute mark. Stop creates the final duration mark.
+      final List<Map<String, dynamic>> historyEntries = moistureSensors.map((
+        sensor,
+      ) {
+        return {
+          'sensor_id': sensor['id'],
+          'moisture_percentage': (sensor['moisture_percentage'] as num? ?? 0)
+              .toDouble(),
+          'recorded_at':
+              nowIso, // This timestamp links it to "today" in your date selector
+        };
+      }).toList();
+
+      await Supabase.instance.client
+          .from('sensor_history')
+          .insert(historyEntries);
+
+      debugPrint(
+        "System ${activate ? 'Started' : 'Stopped'}. Final snapshot stored.",
+      );
+
+      if (activate && mounted) {
+        Navigator.pushNamed(context, '/analysis-screen');
+      }
     } catch (e) {
-      debugPrint("Update error caught: $e");
-      // Optional: Show a snackbar to see the error on the phone
-      if (mounted) {
+      debugPrint("Update error: $e");
+      if (mounted)
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Database Error: $e")));
-      }
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => _isBulkUpdating = false);
     }
@@ -225,6 +294,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // FIXED: Changed app_bar to appBar
       appBar: CustomAppBar(
         title: 'DryCe Monitor',
+        showNotifications: true,
         showSyncStatus: true,
         syncStatus: true,
         unreadNotificationCount: _notifications
@@ -235,21 +305,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _sensorStream,
         builder: (context, snapshot) {
-          if (snapshot.hasError)
+          if (snapshot.hasError) {
             return Center(child: Text("Error: ${snapshot.error}"));
-          if (!snapshot.hasData)
+          }
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           final allSensors = snapshot.data!;
           _handleNotifications(allSensors);
 
           // 1. Filter: Grid only shows moisture sensors for the selected variety
           final moistureSensors = allSensors
-              .where(
-                (s) =>
-                    s['id'].toString().startsWith('MSENSOR') &&
-                    s['rice_variety'] == _selectedRiceVariety,
-              )
+              .where((s) => s['id'].toString().startsWith('MSENSOR'))
               .toList();
 
           // 2. Find the TEMPERATURE row specifically for the bottom Heater card
@@ -265,10 +333,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               SliverToBoxAdapter(
                 child: Column(
                   children: [
-                    const GreetingHeaderWidget(userName: "Farmer"),
+                    GreetingHeaderWidget(
+                      userName: _isLoadingProfile ? "..." : _fullName,
+                    ),
                     const SizedBox(height: 16),
                     RiceVarietySelectorWidget(
-                      selectedVariety: _selectedRiceVariety,
+                      selectedVariety: _selectedRiceVariety ?? '',
                       varieties: const [
                         'Basmati',
                         'Jasmine',
@@ -276,9 +346,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         'Short Grain',
                         'Brown Rice',
                       ],
-                      onVarietyChanged: (val) {
-                        if (val != null)
+                      onVarietyChanged: (val) async {
+                        if (val != null) {
+                          // 1. Update local UI state
                           setState(() => _selectedRiceVariety = val);
+
+                          try {
+                            // 2. Update all moisture sensors in Supabase immediately
+                            await Supabase.instance.client
+                                .from('sensors')
+                                .update({
+                                  'rice_variety': val,
+                                  'last_update': DateTime.now()
+                                      .toUtc()
+                                      .toIso8601String(),
+                                })
+                                // Filters for all moisture sensors so they are all updated to this variety
+                                .like('id', 'MSENSOR%');
+
+                            debugPrint("Variety updated in Supabase to: $val");
+                          } catch (e) {
+                            debugPrint("Error updating variety: $e");
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Failed to sync variety: $e"),
+                                ),
+                              );
+                            }
+                          }
+                        }
                       },
                     ),
                     const SizedBox(height: 24),
