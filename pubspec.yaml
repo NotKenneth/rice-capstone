@@ -7,19 +7,17 @@ environment:
   sdk: ^3.9.0
 
 dependencies:
-  video_player: ^2.8.1
   supabase_flutter: ^2.0.0
   flutter:       # CRITICAL: Required for every Flutter project - DO NOT REMOVE
     sdk: flutter # CRITICAL: Required for every Flutter project - DO NOT REMOVE
   flutter_local_notifications: ^17.0.0
-  
-  # CRITICAL: Core UI and responsive design - DO NOT REMOVE OR MODIFY
   sizer: ^2.0.15              # Required for responsive design system
   flutter_svg: ^2.0.9        # Required for SVG icon support
-  google_fonts: ^6.1.0       # Required for typography (replaces local fonts)
+  google_fonts: ^8.0.2       # Required for typography (replaces local fonts)
   shared_preferences: ^2.2.2 # Required for local data storage
   web: ^1.1.1
   image_picker: ^1.0.7
+  
   
   # Feature dependencies - safe to modify
   cached_network_image: ^3.3.1
@@ -39,7 +37,7 @@ flutter:
   assets:
     - assets/power-button.png
     - assets/Gemini_Generated_Image_sr9q1dsr9q1dsr9q.png
-    - assets/login_background.jpg
+    - assets/loginbackground.png
    
 
   # CRITICAL ASSET MANAGEMENT RULES:

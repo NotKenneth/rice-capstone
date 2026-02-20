@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
 import 'package:sizer/sizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart'; // <-- Added Google Fonts
 
 import '../../core/app_export.dart';
 
@@ -23,6 +24,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
+  // Premium accent color for the Agriculture theme
+  final Color _primaryAccent = const Color(0xFF4CAF50); 
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -32,11 +36,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.heavyImpact(); // Haptic error feedback
+      HapticFeedback.heavyImpact(); 
       return;
     }
 
-    HapticFeedback.lightImpact(); // Haptic tap feedback
+    HapticFeedback.lightImpact(); 
     setState(() => _isLoading = true);
 
     try {
@@ -47,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (res.user != null) {
         if (mounted) {
-          HapticFeedback.mediumImpact(); // Success feedback
+          HapticFeedback.mediumImpact(); 
           Navigator.pushNamedAndRemoveUntil(
             context,
             '/dashboard-screen',
@@ -78,12 +82,12 @@ class _LoginScreenState extends State<LoginScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+        title: Text(title, style: GoogleFonts.montserrat(fontWeight: FontWeight.bold)),
+        content: Text(message, style: GoogleFonts.inter()),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text('OK', style: GoogleFonts.inter(color: _primaryAccent, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -92,21 +96,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      // We use a Stack to put the image behind everything
       body: Stack(
         children: [
           // 1. Full Bleed Background Image
           Positioned.fill(
             child: Image.asset(
-              'assets/login_background.jpg',
+              'assets/loginbackground.png',
               fit: BoxFit.cover,
             ),
           ),
           
-          // 2. Subtle Dark Gradient Overlay to ensure text readability
+          // 2. Subtle Dark Gradient Overlay
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -114,8 +115,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.4),
-                    Colors.black.withOpacity(0.7),
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.8), // Darkened slightly for better contrast
                   ],
                 ),
               ),
@@ -140,13 +141,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           SizedBox(height: 2.h),
-                          _buildEnvironmentalData(), // New Live Data Widget
+                          _buildEnvironmentalData(), 
                           SizedBox(height: 4.h),
-                          _buildHeaderItems(theme),
+                          _buildHeaderItems(),
                           const Spacer(),
-                          _buildGlassLoginForm(theme), // Glassmorphic Form
+                          _buildGlassLoginForm(), 
                           SizedBox(height: 3.h),
-                          _buildRegistrationLink(theme),
+                          _buildRegistrationLink(),
                           SizedBox(height: 4.h),
                         ],
                       ),
@@ -161,7 +162,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- NEW: Glanceable Environmental Data ---
   Widget _buildEnvironmentalData() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -191,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(width: 1.w),
               Text(
                 label,
-                style: const TextStyle(
+                style: GoogleFonts.inter( // Applied Inter
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
@@ -204,34 +204,33 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- REFACTORED: Header Items ---
-  Widget _buildHeaderItems(ThemeData theme) {
+  Widget _buildHeaderItems() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'DryCe Monitor',
-          style: theme.textTheme.headlineMedium?.copyWith(
+          style: GoogleFonts.montserrat( // Applied Montserrat
             color: Colors.white,
             fontWeight: FontWeight.w800,
             fontSize: 36,
-            letterSpacing: 1.2,
+            letterSpacing: -0.5, // Slightly tighter tracking for headings looks premium
           ),
         ),
         SizedBox(height: 0.5.h),
         Text(
           'Rice Drying Monitoring System',
-          style: theme.textTheme.bodyMedium?.copyWith(
+          style: GoogleFonts.inter( // Applied Inter
             color: Colors.white.withOpacity(0.8),
             fontSize: 16,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],
     );
   }
 
-  // --- REFACTORED: Glassmorphic Form ---
-  Widget _buildGlassLoginForm(ThemeData theme) {
+  Widget _buildGlassLoginForm() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
@@ -239,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Container(
           padding: EdgeInsets.all(6.w),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1), // Frosted look
+            color: Colors.white.withOpacity(0.1), 
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: Colors.white.withOpacity(0.2)),
           ),
@@ -250,7 +249,7 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 Text(
                   'Welcome Back',
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  style: GoogleFonts.montserrat( // Applied Montserrat
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                     fontSize: 24,
@@ -259,19 +258,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 1.h),
                 Text(
                   'Sign in to access sensor arrays',
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  style: GoogleFonts.inter( // Applied Inter
                     color: Colors.white.withOpacity(0.7),
+                    fontSize: 14,
                   ),
                 ),
                 SizedBox(height: 4.h),
 
-                // Note: Consider styling these TextFormFields with a dark/transparent theme 
-                // in your app theme, or override the InputDecoration here for white text.
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
-                  style: const TextStyle(color: Colors.white),
+                  style: GoogleFonts.inter(color: Colors.white), // Font for input
                   decoration: _glassInputDecoration('Email', 'person'),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -286,7 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
                   textInputAction: TextInputAction.done,
-                  style: const TextStyle(color: Colors.white),
+                  style: GoogleFonts.inter(color: Colors.white), // Font for input
                   onFieldSubmitted: (_) => _handleLogin(),
                   decoration: _glassInputDecoration('Password', 'lock').copyWith(
                     suffixIcon: IconButton(
@@ -296,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.white.withOpacity(0.7),
                       ),
                       onPressed: () {
-                        HapticFeedback.lightImpact(); // Satisfying toggle tap
+                        HapticFeedback.lightImpact(); 
                         setState(() => _isPasswordVisible = !_isPasswordVisible);
                       },
                     ),
@@ -316,14 +314,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () {
                       HapticFeedback.lightImpact();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Feature coming soon')),
+                        SnackBar(
+                          content: Text('Feature coming soon', style: GoogleFonts.inter()),
+                          backgroundColor: Colors.black87,
+                        )
                       );
                     },
                     child: Text(
                       'Forgot Password?',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.primaryContainer, // Use a bright accent
+                      style: GoogleFonts.inter( // Applied Inter
+                        color: _primaryAccent,
                         fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
                   ),
@@ -335,7 +337,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
+                      backgroundColor: _primaryAccent, // Vibrant Green
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -353,10 +355,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           )
                         : Text(
                             'Login',
-                            style: theme.textTheme.titleMedium?.copyWith(
+                            style: GoogleFonts.inter( // Applied Inter
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.0,
+                              fontSize: 16,
                             ),
                           ),
                   ),
@@ -369,11 +372,10 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Helper for input decoration to match the glassmorphic dark vibe
   InputDecoration _glassInputDecoration(String hint, String iconName) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+      hintStyle: GoogleFonts.inter(color: Colors.white.withOpacity(0.5)), // Applied Inter
       filled: true,
       fillColor: Colors.black.withOpacity(0.2),
       border: OutlineInputBorder(
@@ -386,8 +388,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.white),
+        borderSide: const BorderSide(color: Colors.white, width: 1.5), // Slightly thicker on focus
       ),
+      errorStyle: GoogleFonts.inter(color: Colors.redAccent), // Clean error text
       prefixIcon: Padding(
         padding: EdgeInsets.all(3.w),
         child: CustomIconWidget(
@@ -399,14 +402,15 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildRegistrationLink(ThemeData theme) {
+  Widget _buildRegistrationLink() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           'New User? ',
-          style: theme.textTheme.bodyMedium?.copyWith(
+          style: GoogleFonts.inter( // Applied Inter
             color: Colors.white.withOpacity(0.8),
+            fontSize: 14,
           ),
         ),
         TextButton(
@@ -421,9 +425,10 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           child: Text(
             'Sign Up',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.primary, // Ensure this is readable against dark background
+            style: GoogleFonts.inter( // Applied Inter
+              color: _primaryAccent,
               fontWeight: FontWeight.w800,
+              fontSize: 14,
             ),
           ),
         ),
