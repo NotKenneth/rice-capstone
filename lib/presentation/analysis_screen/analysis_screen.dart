@@ -151,8 +151,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Analysis',
+        // This will now work perfectly and remove the space!
+        automaticallyImplyLeading: false, 
         actions: [
-          IconButton(onPressed: _loadAllData, icon: Icon(Icons.refresh)),
+          IconButton(onPressed: _loadAllData, icon: const Icon(Icons.refresh)),
         ],
       ),
       body: _isLoading

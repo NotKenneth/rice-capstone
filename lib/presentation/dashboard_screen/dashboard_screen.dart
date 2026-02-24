@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_export.dart';
 import '../../widgets/custom_app_bar.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // NEW
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'; 
 import 'dart:typed_data';
 import '../../widgets/custom_bottom_bar.dart';
 import './widgets/greeting_header_widget.dart';
@@ -37,7 +37,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // NEW: Request permissions for Android 13+ on screen load
     _requestNotificationPermissions();
     _fetchUserProfile();
   }
@@ -79,24 +78,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ?.requestNotificationsPermission();
   }
 
-  /// NEW: Triggers the actual phone hardware (Vibrate, Sound, Lockscreen)
   Future<void> _triggerSystemNotification(String title, String body) async {
-    // Define your custom vibration pattern
     final Int64List vibrationPattern = Int64List.fromList([0, 1000, 500, 1000]);
 
     AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'dryce_alerts_channel', // MUST match the ID in main.dart
+      'dryce_alerts_channel', 
       'DryCe Critical Alerts',
       importance: Importance.max,
       priority: Priority.high,
       ticker: 'ticker',
       vibrationPattern: vibrationPattern,
-
-      // --- SOUND SETTINGS ---
       playSound: true,
-      // Reference the file in res/raw/dryce_alarm (no extension)
       sound: const RawResourceAndroidNotificationSound('dryce_alarm'),
-
       enableVibration: true,
       visibility: NotificationVisibility.public,
       fullScreenIntent: true,
@@ -114,12 +107,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Activates or Deactivates moisture sensors and the global Temperature sensor
   Future<void> _toggleAllSensors(
     List<Map<String, dynamic>> moistureSensors,
     bool activate,
   ) async {
-    // 1. Validation for Rice Variety
     if (activate &&
         (_selectedRiceVariety == null || _selectedRiceVariety!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -134,7 +125,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (moistureSensors.isEmpty) return;
 
-    // 2. Confirmation Dialog
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -208,19 +198,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
 
       if (activate && mounted) {
-        Navigator.pushNamed(context, '/analysis-screen');
+        // -------------------------------------------------------------
+        // FIX: This safely replaces the screen instead of piling on top
+        // -------------------------------------------------------------
+        Navigator.pushReplacementNamed(context, '/analysis-screen');
       }
     } catch (e) {
       debugPrint("Update error: $e");
       if (mounted) {
-        // FIX: Ensure screen is still active
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text("Error: $e")));
       }
     } finally {
       if (mounted) {
-        // FIX: Ensure screen is still active
         setState(() => _isBulkUpdating = false);
       }
     }
@@ -297,9 +288,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      // FIXED: Changed app_bar to appBar
       appBar: CustomAppBar(
         title: 'DryCe Monitor',
+        automaticallyImplyLeading: false, // Ensures no back button ever shows here!
         showNotifications: true,
         showSyncStatus: true,
         syncStatus: true,
@@ -312,7 +303,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         stream: _sensorStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            // HANDLE REALTIME TIMEOUT HERE
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -336,9 +326,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () {
-                      setState(
-                        () {},
-                      ); // Rebuilds the StreamBuilder to try again
+                      setState(() {}); 
                     },
                     icon: const Icon(Icons.refresh),
                     label: const Text("RETRY CONNECTION"),
@@ -354,12 +342,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final allSensors = snapshot.data!;
           _handleNotifications(allSensors);
 
-          // 1. Filter: Grid only shows moisture sensors for the selected variety
           final moistureSensors = allSensors
               .where((s) => s['id'].toString().startsWith('MSENSOR'))
               .toList();
 
-          // 2. Find the TEMPERATURE row specifically for the bottom Heater card
           final tempRow = allSensors.firstWhere(
             (s) => s['id'] == "TEMPERATURE",
             orElse: () => {"temperature": 0.0},
@@ -387,11 +373,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                       onVarietyChanged: (val) async {
                         if (val != null) {
-                          // 1. Update local UI state
                           setState(() => _selectedRiceVariety = val);
-
                           try {
-                            // 2. Update all moisture sensors in Supabase immediately
                             await Supabase.instance.client
                                 .from('sensors')
                                 .update({
@@ -400,7 +383,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       .toUtc()
                                       .toIso8601String(),
                                 })
-                                // Filters for all moisture sensors so they are all updated to this variety
                                 .like('id', 'MSENSOR%');
 
                             debugPrint("Variety updated in Supabase to: $val");
@@ -423,7 +405,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
-              // MOISTURE GRID
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 sliver: SliverGrid(
@@ -459,7 +440,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   }, childCount: moistureSensors.length),
                 ),
               ),
-              // GLOBAL HEATER CARD
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),

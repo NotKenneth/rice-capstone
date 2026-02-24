@@ -16,9 +16,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Color? backgroundColor;
   final double elevation;
   final bool showNotifications;
-
   final int unreadNotificationCount;
   final VoidCallback? onNotificationTap;
+  
+  // 1. ADDED: Property to control the back button
+  final bool automaticallyImplyLeading; 
 
   const CustomAppBar({
     super.key,
@@ -36,6 +38,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.unreadNotificationCount = 0,
     this.onNotificationTap,
     this.showNotifications = false,
+    // 2. ADDED: Default is true so it doesn't break other screens
+    this.automaticallyImplyLeading = true, 
   });
 
   @override
@@ -50,8 +54,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: _buildLeading(context),
       actions: _buildActions(context),
       centerTitle: centerTitle,
-      backgroundColor:
-          backgroundColor ??
+      
+      // 3. ADDED: Passes the command to the underlying AppBar
+      automaticallyImplyLeading: automaticallyImplyLeading, 
+      
+      backgroundColor: backgroundColor ??
           (variant == CustomAppBarVariant.transparent
               ? Colors.transparent
               : colorScheme.surface),
@@ -122,7 +129,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     }
 
     // Notification Bell with Badge
-
     if (showNotifications) {
       actionWidgets.add(
         _NotificationBell(
@@ -162,6 +168,9 @@ class CustomSliverAppBar extends StatelessWidget {
   final Widget? flexibleSpace;
   final int unreadNotificationCount;
   final VoidCallback? onNotificationTap;
+  
+  // ADDED: Added here too, just in case you need it later!
+  final bool automaticallyImplyLeading; 
 
   const CustomSliverAppBar({
     super.key,
@@ -178,6 +187,7 @@ class CustomSliverAppBar extends StatelessWidget {
     this.flexibleSpace,
     this.unreadNotificationCount = 0,
     this.onNotificationTap,
+    this.automaticallyImplyLeading = true, // Default true
   });
 
   @override
@@ -189,6 +199,10 @@ class CustomSliverAppBar extends StatelessWidget {
       title: _buildTitle(context),
       leading: leading,
       actions: _buildActions(context),
+      
+      // ADDED: Passes command to SliverAppBar
+      automaticallyImplyLeading: automaticallyImplyLeading, 
+      
       backgroundColor: colorScheme.surface,
       foregroundColor: colorScheme.onSurface,
       elevation: 2.0,
