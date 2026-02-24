@@ -235,7 +235,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           // 1. Premium Dark Background
           Positioned.fill(
             child: Image.asset(
-              'assets/login_background.jpg', // Re-using the login background
+              'assets/loginbackground.png', // 
               fit: BoxFit.cover,
             ),
           ),

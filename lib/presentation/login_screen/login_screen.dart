@@ -1,10 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
+import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_fonts/google_fonts.dart'; // <-- Added Google Fonts
-
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_export.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -20,12 +19,12 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
   // Premium accent color for the Agriculture theme
-  final Color _primaryAccent = const Color(0xFF4CAF50); 
+  final Color _primaryAccent = const Color(0xFF4CAF50);
 
   @override
   void dispose() {
@@ -36,11 +35,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) {
-      HapticFeedback.heavyImpact(); 
+      HapticFeedback.heavyImpact();
       return;
     }
 
-    HapticFeedback.lightImpact(); 
+    HapticFeedback.lightImpact();
     setState(() => _isLoading = true);
 
     try {
@@ -51,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (res.user != null) {
         if (mounted) {
-          HapticFeedback.mediumImpact(); 
+          HapticFeedback.mediumImpact();
           Navigator.pushNamedAndRemoveUntil(
             context,
             '/dashboard-screen',
@@ -82,12 +81,21 @@ class _LoginScreenState extends State<LoginScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title, style: GoogleFonts.montserrat(fontWeight: FontWeight.bold)),
+        title: Text(
+          title,
+          style: GoogleFonts.montserrat(fontWeight: FontWeight.bold),
+        ),
         content: Text(message, style: GoogleFonts.inter()),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('OK', style: GoogleFonts.inter(color: _primaryAccent, fontWeight: FontWeight.bold)),
+            child: Text(
+              'OK',
+              style: GoogleFonts.inter(
+                color: _primaryAccent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -101,12 +109,9 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           // 1. Full Bleed Background Image
           Positioned.fill(
-            child: Image.asset(
-              'assets/loginbackground.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/loginbackground.png', fit: BoxFit.cover),
           ),
-          
+
           // 2. Subtle Dark Gradient Overlay
           Positioned.fill(
             child: Container(
@@ -116,7 +121,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.black.withOpacity(0.3),
-                    Colors.black.withOpacity(0.8), // Darkened slightly for better contrast
+                    Colors.black.withOpacity(
+                      0.8,
+                    ), // Darkened slightly for better contrast
                   ],
                 ),
               ),
@@ -130,7 +137,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: SingleChildScrollView(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    minHeight: MediaQuery.of(context).size.height -
+                    minHeight:
+                        MediaQuery.of(context).size.height -
                         MediaQuery.of(context).padding.top -
                         MediaQuery.of(context).padding.bottom,
                   ),
@@ -141,11 +149,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           SizedBox(height: 2.h),
-                          _buildEnvironmentalData(), 
+                          _buildEnvironmentalData(),
                           SizedBox(height: 4.h),
                           _buildHeaderItems(),
                           const Spacer(),
-                          _buildGlassLoginForm(), 
+                          _buildGlassLoginForm(),
                           SizedBox(height: 3.h),
                           _buildRegistrationLink(),
                           SizedBox(height: 4.h),
@@ -191,7 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(width: 1.w),
               Text(
                 label,
-                style: GoogleFonts.inter( // Applied Inter
+                style: GoogleFonts.inter(
+                  // Applied Inter
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
@@ -210,17 +219,20 @@ class _LoginScreenState extends State<LoginScreen> {
       children: [
         Text(
           'DryCe Monitor',
-          style: GoogleFonts.montserrat( // Applied Montserrat
+          style: GoogleFonts.montserrat(
+            // Applied Montserrat
             color: Colors.white,
             fontWeight: FontWeight.w800,
             fontSize: 36,
-            letterSpacing: -0.5, // Slightly tighter tracking for headings looks premium
+            letterSpacing:
+                -0.5, // Slightly tighter tracking for headings looks premium
           ),
         ),
         SizedBox(height: 0.5.h),
         Text(
           'Rice Drying Monitoring System',
-          style: GoogleFonts.inter( // Applied Inter
+          style: GoogleFonts.inter(
+            // Applied Inter
             color: Colors.white.withOpacity(0.8),
             fontSize: 16,
             fontWeight: FontWeight.w400,
@@ -238,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Container(
           padding: EdgeInsets.all(6.w),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1), 
+            color: Colors.white.withOpacity(0.1),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: Colors.white.withOpacity(0.2)),
           ),
@@ -249,7 +261,8 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 Text(
                   'Welcome Back',
-                  style: GoogleFonts.montserrat( // Applied Montserrat
+                  style: GoogleFonts.montserrat(
+                    // Applied Montserrat
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                     fontSize: 24,
@@ -258,7 +271,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 1.h),
                 Text(
                   'Sign in to access sensor arrays',
-                  style: GoogleFonts.inter( // Applied Inter
+                  style: GoogleFonts.inter(
+                    // Applied Inter
                     color: Colors.white.withOpacity(0.7),
                     fontSize: 14,
                   ),
@@ -269,7 +283,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
-                  style: GoogleFonts.inter(color: Colors.white), // Font for input
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                  ), // Font for input
                   decoration: _glassInputDecoration('Email', 'person'),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -284,21 +300,28 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
                   textInputAction: TextInputAction.done,
-                  style: GoogleFonts.inter(color: Colors.white), // Font for input
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                  ), // Font for input
                   onFieldSubmitted: (_) => _handleLogin(),
-                  decoration: _glassInputDecoration('Password', 'lock').copyWith(
-                    suffixIcon: IconButton(
-                      icon: CustomIconWidget(
-                        iconName: _isPasswordVisible ? 'visibility' : 'visibility_off',
-                        size: 24,
-                        color: Colors.white.withOpacity(0.7),
+                  decoration: _glassInputDecoration('Password', 'lock')
+                      .copyWith(
+                        suffixIcon: IconButton(
+                          icon: CustomIconWidget(
+                            iconName: _isPasswordVisible
+                                ? 'visibility'
+                                : 'visibility_off',
+                            size: 24,
+                            color: Colors.white.withOpacity(0.7),
+                          ),
+                          onPressed: () {
+                            HapticFeedback.lightImpact();
+                            setState(
+                              () => _isPasswordVisible = !_isPasswordVisible,
+                            );
+                          },
+                        ),
                       ),
-                      onPressed: () {
-                        HapticFeedback.lightImpact(); 
-                        setState(() => _isPasswordVisible = !_isPasswordVisible);
-                      },
-                    ),
-                  ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your password';
@@ -315,14 +338,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       HapticFeedback.lightImpact();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Feature coming soon', style: GoogleFonts.inter()),
+                          content: Text(
+                            'Feature coming soon',
+                            style: GoogleFonts.inter(),
+                          ),
                           backgroundColor: Colors.black87,
-                        )
+                        ),
                       );
                     },
                     child: Text(
                       'Forgot Password?',
-                      style: GoogleFonts.inter( // Applied Inter
+                      style: GoogleFonts.inter(
+                        // Applied Inter
                         color: _primaryAccent,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -350,12 +377,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : Text(
                             'Login',
-                            style: GoogleFonts.inter( // Applied Inter
+                            style: GoogleFonts.inter(
+                              // Applied Inter
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.0,
@@ -375,7 +405,9 @@ class _LoginScreenState extends State<LoginScreen> {
   InputDecoration _glassInputDecoration(String hint, String iconName) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.inter(color: Colors.white.withOpacity(0.5)), // Applied Inter
+      hintStyle: GoogleFonts.inter(
+        color: Colors.white.withOpacity(0.5),
+      ), // Applied Inter
       filled: true,
       fillColor: Colors.black.withOpacity(0.2),
       border: OutlineInputBorder(
@@ -388,9 +420,14 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.white, width: 1.5), // Slightly thicker on focus
+        borderSide: const BorderSide(
+          color: Colors.white,
+          width: 1.5,
+        ), // Slightly thicker on focus
       ),
-      errorStyle: GoogleFonts.inter(color: Colors.redAccent), // Clean error text
+      errorStyle: GoogleFonts.inter(
+        color: Colors.redAccent,
+      ), // Clean error text
       prefixIcon: Padding(
         padding: EdgeInsets.all(3.w),
         child: CustomIconWidget(
@@ -408,7 +445,8 @@ class _LoginScreenState extends State<LoginScreen> {
       children: [
         Text(
           'New User? ',
-          style: GoogleFonts.inter( // Applied Inter
+          style: GoogleFonts.inter(
+            // Applied Inter
             color: Colors.white.withOpacity(0.8),
             fontSize: 14,
           ),
@@ -425,7 +463,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           child: Text(
             'Sign Up',
-            style: GoogleFonts.inter( // Applied Inter
+            style: GoogleFonts.inter(
+              // Applied Inter
               color: _primaryAccent,
               fontWeight: FontWeight.w800,
               fontSize: 14,

@@ -15,24 +15,6 @@ class RegistrationHeaderWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Agricultural Icon/Logo
-        Container(
-          width: 20.w,
-          height: 20.w,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(4.w),
-          ),
-          child: Center(
-            child: CustomIconWidget(
-              iconName: 'agriculture',
-              color: theme.colorScheme.primary,
-              size: 12.w,
-            ),
-          ),
-        ),
-        SizedBox(height: 3.h),
-
         // Welcome Title
         Text(
           'Create Your Account',
