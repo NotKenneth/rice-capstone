@@ -161,8 +161,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     if (confirm != true) return;
+    if (!mounted) return;
 
     setState(() => _isBulkUpdating = true);
+
+    final String sessionVariety = _selectedRiceVariety ?? "Unknown";
     try {
       final List<String> idsToUpdate = moistureSensors
           .map((s) => s['id'].toString())
@@ -173,8 +176,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
       final String nowIso = DateTime.now().toUtc().toIso8601String();
 
-      // 3. Update the 'sensors' table status
-      // We update is_active and variety.
       await Supabase.instance.client
           .from('sensors')
           .update({
@@ -185,9 +186,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           })
           .inFilter('id', idsToUpdate);
 
-      // 4. Record History Snapshot
-      // IMPORTANT: We do this for BOTH Start and Stop.
-      // Start creates the 0-minute mark. Stop creates the final duration mark.
       final List<Map<String, dynamic>> historyEntries = moistureSensors.map((
         sensor,
       ) {
@@ -196,8 +194,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'moisture_percentage': (sensor['moisture_percentage'] as num? ?? 0)
               .toDouble(),
           'temperature': (sensor['temperature'] as num? ?? 0).toDouble(),
-          'recorded_at':
-              nowIso, // This timestamp links it to "today" in your date selector
+          'recorded_at': nowIso,
+          'rice_variety': sessionVariety,
         };
       }).toList();
 
@@ -214,12 +212,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       debugPrint("Update error: $e");
-      if (mounted)
+      if (mounted) {
+        // FIX: Ensure screen is still active
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     } finally {
-      if (mounted) setState(() => _isBulkUpdating = false);
+      if (mounted) {
+        // FIX: Ensure screen is still active
+        setState(() => _isBulkUpdating = false);
+      }
     }
   }
 
@@ -309,7 +312,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
         stream: _sensorStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
+            // HANDLE REALTIME TIMEOUT HERE
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Connection Timeout",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                    child: Text(
+                      "The server connection timed out. Please check your internet or retry.",
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(
+                        () {},
+                      ); // Rebuilds the StreamBuilder to try again
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text("RETRY CONNECTION"),
+                  ),
+                ],
+              ),
+            );
           }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
