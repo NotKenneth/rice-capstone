@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_export.dart';
 import '../../widgets/custom_app_bar.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'; 
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:typed_data';
 import '../../widgets/custom_bottom_bar.dart';
 import './widgets/greeting_header_widget.dart';
@@ -40,6 +40,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _requestNotificationPermissions();
     _fetchUserProfile();
   }
+
+  //--------------FAKE READINGS--------------------------------
+  double _calculateDecreasingMoisture(String? lastStartedAt, String sensorId) {
+    if (lastStartedAt == null) return 0.0;
+    final startTime = DateTime.tryParse(lastStartedAt);
+    if (startTime == null) return 0.0;
+
+    final now = DateTime.now().toUtc();
+    final elapsedMinutes = now.difference(startTime).inMinutes;
+
+    int idNumber =
+        int.tryParse(sensorId.replaceAll(RegExp(r'[^0-9]'), '')) ?? 1;
+
+    double minutesPerStep =
+        2.0 + ((idNumber * 7 + startTime.minute) % 21) / 10.0;
+
+    int intervals = (elapsedMinutes / minutesPerStep).floor();
+    if (intervals <= 0) return 20.0 + (idNumber % 3 * 0.2);
+
+    double totalDrop = 0.0;
+    for (int i = 1; i <= intervals; i++) {
+      double randomDrop =
+          ((idNumber + i + startTime.millisecond) % 6 + 2) / 10.0;
+      totalDrop += randomDrop;
+    }
+
+    double result = (20.0 + (idNumber % 3 * 0.2)) - totalDrop;
+    return result < 9.2 ? 9.2 : result;
+  }
+
+  double _calculateSimulatedTemperature(String? lastStartedAt) {
+    if (lastStartedAt == null) return 27.5; // Ambient room temp when off
+
+    final startTime = DateTime.tryParse(lastStartedAt);
+    if (startTime == null) return 27.5;
+
+    final now = DateTime.now().toUtc();
+    final elapsedMinutes = now.difference(startTime).inMinutes;
+
+    int intervals = (elapsedMinutes / 10).floor();
+
+    double temp = 27.5 + (intervals * 0.5);
+
+    if (temp > 42.0) {
+      temp = 42.0 + (DateTime.now().second % 5 * 0.1);
+    }
+
+    return temp;
+  }
+  //-------------------------------------------------------------
 
   Future<void> _fetchUserProfile() async {
     try {
@@ -82,7 +132,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final Int64List vibrationPattern = Int64List.fromList([0, 1000, 500, 1000]);
 
     AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'dryce_alerts_channel', 
+      'dryce_alerts_channel',
       'DryCe Critical Alerts',
       importance: Importance.max,
       priority: Priority.high,
@@ -155,7 +205,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     setState(() => _isBulkUpdating = true);
 
-    final String sessionVariety = _selectedRiceVariety ?? "Unknown";
+    final String currentSelection = _selectedRiceVariety ?? "Short Grain";
+    final String nowIso = DateTime.now().toUtc().toIso8601String();
+
     try {
       final List<String> idsToUpdate = moistureSensors
           .map((s) => s['id'].toString())
@@ -164,7 +216,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!idsToUpdate.contains('TEMPERATURE')) {
         idsToUpdate.add('TEMPERATURE');
       }
-      final String nowIso = DateTime.now().toUtc().toIso8601String();
 
       await Supabase.instance.client
           .from('sensors')
@@ -172,7 +223,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'is_active': activate,
             'last_started_at': activate ? nowIso : null,
             'last_update': nowIso,
-            'rice_variety': activate ? _selectedRiceVariety : "EMPTY",
+            'rice_variety': currentSelection,
           })
           .inFilter('id', idsToUpdate);
 
@@ -180,12 +231,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         sensor,
       ) {
         return {
-          'sensor_id': sensor['id'],
-          'moisture_percentage': (sensor['moisture_percentage'] as num? ?? 0)
+          'sensor_id': sensor['id'].toString(),
+          'moisture_percentage': (sensor['moisture_percentage'] as num? ?? 0.0)
               .toDouble(),
-          'temperature': (sensor['temperature'] as num? ?? 0).toDouble(),
+          'temperature': (sensor['temperature'] as num? ?? 27.5).toDouble(),
           'recorded_at': nowIso,
-          'rice_variety': sessionVariety,
+          'rice_variety': currentSelection,
         };
       }).toList();
 
@@ -194,13 +245,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .insert(historyEntries);
 
       debugPrint(
-        "System ${activate ? 'Started' : 'Stopped'}. Final snapshot stored.",
+        "System ${activate ? 'Started' : 'Stopped'}. Variety saved: $currentSelection",
       );
 
       if (activate && mounted) {
-        // -------------------------------------------------------------
-        // FIX: This safely replaces the screen instead of piling on top
-        // -------------------------------------------------------------
         Navigator.pushReplacementNamed(context, '/analysis-screen');
       }
     } catch (e) {
@@ -208,7 +256,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+        ).showSnackBar(SnackBar(content: Text("Error saving data: $e")));
       }
     } finally {
       if (mounted) {
@@ -227,10 +275,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
           String id = s['id']?.toString() ?? "Unknown";
 
           if (m > 0 && m <= 12.4) {
-            if (_addToBell(id, "Target moisture reached", true)) updated = true;
+            if (_addToBell(
+              id,
+              "Target moisture reached: ${m.toStringAsFixed(1)}%",
+              true,
+            ))
+              updated = true;
+          } else if (m > 12.4 && m <= 13.5) {
+            if (_addToBell(
+              id,
+              "Approaching target moisture: ${m.toStringAsFixed(1)}%",
+              false,
+            ))
+              updated = true;
           }
           if (t > 45.0) {
-            if (_addToBell(id, "High Temp Alert: ${t}°C", true)) updated = true;
+            if (_addToBell(
+              id,
+              "CRITICAL: High Temp Alert: ${t.toStringAsFixed(1)}°C",
+              true,
+            ))
+              updated = true;
+          } else if (t > 40.0 && t <= 45.0) {
+            if (_addToBell(
+              id,
+              "Warning: Temperature rising: ${t.toStringAsFixed(1)}°C",
+              false,
+            ))
+              updated = true;
           }
         }
       }
@@ -290,7 +362,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'DryCe Monitor',
-        automaticallyImplyLeading: false, // Ensures no back button ever shows here!
+        automaticallyImplyLeading:
+            false, // Ensures no back button ever shows here!
         showNotifications: true,
         showSyncStatus: true,
         syncStatus: true,
@@ -326,7 +399,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () {
-                      setState(() {}); 
+                      setState(() {});
                     },
                     icon: const Icon(Icons.refresh),
                     label: const Text("RETRY CONNECTION"),
@@ -340,17 +413,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
 
           final allSensors = snapshot.data!;
-          _handleNotifications(allSensors);
+          final simulatedSensors = allSensors.map((sensor) {
+            final String id = sensor['id'].toString();
+            final bool isActive = sensor['is_active'] == true;
+            final String? lastStartedAt = sensor['last_started_at'];
 
-          final moistureSensors = allSensors
-              .where((s) => s['id'].toString().startsWith('MSENSOR'))
-              .toList();
+            if (id.startsWith('MSENSOR')) {
+              return {
+                ...sensor,
+                'moisture_percentage': isActive
+                    ? _calculateDecreasingMoisture(lastStartedAt, id)
+                    : 0.0,
+                'temperature': isActive
+                    ? _calculateSimulatedTemperature(lastStartedAt)
+                    : 27.5,
+              };
+            }
+
+            if (id == 'TEMPERATURE') {
+              return {
+                ...sensor,
+                'temperature': isActive
+                    ? _calculateSimulatedTemperature(lastStartedAt)
+                    : 27.5,
+              };
+            }
+
+            return sensor;
+          }).toList();
+
+          _handleNotifications(simulatedSensors); //allSensors
+
+          final moistureSensors =
+              simulatedSensors //allSensors
+                  .where((s) => s['id'].toString().startsWith('MSENSOR'))
+                  .toList();
 
           final tempRow = allSensors.firstWhere(
             (s) => s['id'] == "TEMPERATURE",
-            orElse: () => {"temperature": 0.0},
+            orElse: () => {"temperature": 27.5},
           );
-          double currentTemp = (tempRow['temperature'] as num? ?? 0.0)
+          double currentTemp = (tempRow['temperature'] as num? ?? 27.5)
               .toDouble();
 
           return CustomScrollView(

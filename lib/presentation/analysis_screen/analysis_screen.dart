@@ -5,13 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_export.dart';
 import '../../widgets/custom_app_bar.dart';
-import '../../widgets/custom_icon_widget.dart';
-import './widgets/analysis_insights_sheet_widget.dart';
 import './widgets/date_range_selector_widget.dart';
 import './widgets/historical_data_widget.dart';
-import './widgets/metrics_card_widget.dart';
-import './widgets/moisture_trend_chart_widget.dart';
-import './widgets/rice_variety_filter_widget.dart';
 
 class AnalysisScreen extends StatefulWidget {
   const AnalysisScreen({super.key});
@@ -23,43 +18,38 @@ class AnalysisScreen extends StatefulWidget {
 class _AnalysisScreenState extends State<AnalysisScreen> {
   bool _isLoading = true;
   DateTime _selectedDate = DateTime.now();
-
-  List<String> _selectedVarieties = [];
   List<Map<String, dynamic>> _sensorHistoricalData = [];
-
-  final List<Map<String, dynamic>> _riceVarieties = [
-    {'name': 'Jasmine', 'color': const Color(0xFF2E7D32)},
-    {'name': 'Basmati', 'color': const Color(0xFF1976D2)},
-    {'name': 'Arborio', 'color': const Color(0xFFF57C00)},
-    {'name': 'Brown Rice', 'color': const Color(0xFF8D6E63)},
-  ];
 
   @override
   void initState() {
     super.initState();
-    _selectedVarieties = _riceVarieties
-        .map((v) => v['name'] as String)
-        .toList();
     _loadAllData();
   }
 
-  // Master load function
   Future<void> _loadAllData() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _sensorHistoricalData = [];
+    });
 
-    final history = await _fetchAllSensorsHistory();
-
-    if (mounted) {
-      setState(() {
-        _sensorHistoricalData = history;
-        _isLoading = false;
-      });
+    try {
+      final history = await _fetchAllSensorsHistory();
+      if (mounted) {
+        setState(() {
+          _sensorHistoricalData = history;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Master Load Error: $e");
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<List<Map<String, dynamic>>> _fetchAllSensorsHistory() async {
     List<Map<String, dynamic>> finalHistory = [];
+
     List<String> sensorIds = [
       'MSENSOR-001',
       'MSENSOR-002',
@@ -74,7 +64,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       0,
       0,
       0,
-    );
+    ).toUtc();
     final endOfDay = DateTime(
       _selectedDate.year,
       _selectedDate.month,
@@ -82,24 +72,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       23,
       59,
       59,
-    );
+    ).toUtc();
 
     for (String id in sensorIds) {
       try {
-        // 1. Fetch the Rice Variety name from the 'sensors' table for this specific ID
-        final sensorInfo = await Supabase.instance.client
-            .from('sensors')
-            .select('rice_variety')
-            .eq('id', id)
-            .single();
-
-        final String riceVariety =
-            sensorInfo['rice_variety'] ?? 'Unknown Variety';
-
-        // 2. Fetch the historical logs
         final response = await Supabase.instance.client
             .from('sensor_history')
-            .select('moisture_percentage, recorded_at')
+            .select('moisture_percentage, recorded_at, rice_variety')
             .eq('sensor_id', id)
             .gte('recorded_at', startOfDay.toIso8601String())
             .lte('recorded_at', endOfDay.toIso8601String())
@@ -108,6 +87,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         final List rawList = response as List;
 
         if (rawList.isNotEmpty) {
+          String riceVariety = 'Short Grain';
+          for (var row in rawList) {
+            if (row['rice_variety'] != null &&
+                row['rice_variety'] != 'Unknown Variety' &&
+                row['rice_variety'] != 'Unknown') {
+              riceVariety = row['rice_variety'];
+              break;
+            }
+          }
+
           DateTime sessionStart = DateTime.parse(rawList.first['recorded_at']);
           DateTime sessionEnd = DateTime.parse(rawList.last['recorded_at']);
           final duration = sessionEnd.difference(sessionStart);
@@ -123,7 +112,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           }).toList();
 
           finalHistory.add({
-            // Combined variety name and ID for the header
             'variety': '$riceVariety ($id)',
             'pureVariety': riceVariety,
             'sensorId': id,
@@ -134,7 +122,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             'finalMoisture': processedChartData.last['moisture']
                 .toStringAsFixed(1),
             'chartData': processedChartData,
-            'maxMinute': totalMinutes.toDouble(),
+            'maxMinute': totalMinutes.toDouble() < 1
+                ? 1.0
+                : totalMinutes.toDouble(),
           });
         }
       } catch (e) {
@@ -146,13 +136,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Analysis',
-        // This will now work perfectly and remove the space!
-        automaticallyImplyLeading: false, 
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(onPressed: _loadAllData, icon: const Icon(Icons.refresh)),
         ],
@@ -170,38 +157,38 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     },
                   ),
                 ),
-                // THE "NO RECORD" LOGIC
-                _sensorHistoricalData.isEmpty
-                    ? SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.query_stats,
-                              size: 80,
-                              color: Colors.grey[300],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              "No History Found",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            Text(
-                              "No drying records for ${DateFormat('MMMM dd').format(_selectedDate)}.",
-                            ),
-                          ],
+                if (_sensorHistoricalData.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.query_stats,
+                          size: 80,
+                          color: Colors.grey[300],
                         ),
-                      )
-                    : SliverToBoxAdapter(
-                        child: HistoricalDataWidget(
-                          historicalCycles: _sensorHistoricalData,
+                        const SizedBox(height: 16),
+                        Text(
+                          "No History Found",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[600],
+                          ),
                         ),
-                      ),
+                        Text(
+                          "No drying records for ${DateFormat('MMMM dd').format(_selectedDate)}.",
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: HistoricalDataWidget(
+                      historicalCycles: _sensorHistoricalData,
+                    ),
+                  ),
               ],
             ),
       bottomNavigationBar: CustomBottomBar(currentRoute: '/analysis-screen'),
