@@ -305,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // 1. Background Layer: Lottie Animation
           Positioned.fill(
             child: Lottie.asset(
-              'assets/newback.json', 
+              'assets/newwwww.json', 
               fit: BoxFit.cover, 
               repeat: true, 
             ),

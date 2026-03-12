@@ -11,7 +11,6 @@ class GreetingHeaderWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final greeting = _getTimeBasedGreeting();
-    final weatherIcon = _getWeatherIcon();
 
     return Container(
       width: double.infinity,
@@ -45,9 +44,7 @@ class GreetingHeaderWidget extends StatelessWidget {
                       Text(
                         greeting,
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.7,
-                          ),
+                          color: Colors.white70, // Change this to whatever color you want
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -56,31 +53,12 @@ class GreetingHeaderWidget extends StatelessWidget {
                         userName,
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
+                          color: Colors.white70,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(12.0),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(12.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.colorScheme.shadow,
-                        blurRadius: 8.0,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: CustomIconWidget(
-                    iconName: weatherIcon,
-                    color: theme.colorScheme.primary,
-                    size: 32,
                   ),
                 ),
               ],
@@ -128,15 +106,6 @@ class GreetingHeaderWidget extends StatelessWidget {
       return 'Good afternoon';
     } else {
       return 'Good evening';
-    }
-  }
-
-  String _getWeatherIcon() {
-    final hour = DateTime.now().hour;
-    if (hour >= 6 && hour < 18) {
-      return 'wb_sunny';
-    } else {
-      return 'nights_stay';
     }
   }
 
