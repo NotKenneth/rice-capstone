@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../widgets/custom_icon_widget.dart';
-
-/// Date range selector widget for filtering analysis data
 class DateSelectorWidget extends StatefulWidget {
-  final Function(DateTime selectedDate) onDateChanged;
-  final DateTime? initialDate;
+  final Function(DateTime start, DateTime end) onRangeChanged;
+  final DateTimeRange? initialRange;
 
   const DateSelectorWidget({
     super.key,
-    required this.onDateChanged,
-    this.initialDate,
+    required this.onRangeChanged,
+    this.initialRange,
   });
 
   @override
@@ -19,26 +16,69 @@ class DateSelectorWidget extends StatefulWidget {
 }
 
 class _DateSelectorWidgetState extends State<DateSelectorWidget> {
-  late DateTime _selectedDate;
-  final DateFormat _dateFormat = DateFormat('MMMM dd, yyyy');
+  late DateTimeRange _selectedRange;
+  final DateFormat _dateFormat = DateFormat('MMM dd, yyyy');
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = widget.initialDate ?? DateTime.now();
+    _selectedRange =
+        widget.initialRange ??
+        DateTimeRange(
+          start: DateTime.now().subtract(const Duration(days: 7)),
+          end: DateTime.now(),
+        );
+  }
+
+  @override
+  void didUpdateWidget(DateSelectorWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialRange != oldWidget.initialRange &&
+        widget.initialRange != null) {
+      setState(() {
+        _selectedRange = widget.initialRange!;
+      });
+    }
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+    final DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDateRange: _selectedRange,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now(),
+      helpText: 'Select a single date or a range',
+      saveText: 'Done',
     );
 
-    if (picked != null && picked != _selectedDate) {
-      setState(() => _selectedDate = picked);
-      widget.onDateChanged(_selectedDate);
+    if (picked != null) {
+      setState(() => _selectedRange = picked);
+      widget.onRangeChanged(picked.start, picked.end);
+    }
+  }
+
+  Future<void> _selectDateRange(BuildContext context) async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: _selectedRange,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            appBarTheme: Theme.of(context).appBarTheme.copyWith(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              iconTheme: const IconThemeData(color: Colors.white),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != _selectedRange) {
+      setState(() => _selectedRange = picked);
+      widget.onRangeChanged(picked.start, picked.end);
     }
   }
 
@@ -46,7 +86,7 @@ class _DateSelectorWidgetState extends State<DateSelectorWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return GestureDetector(
-      onTap: () => _selectDate(context),
+      onTap: () => _selectDateRange(context),
       child: Container(
         margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -57,13 +97,23 @@ class _DateSelectorWidgetState extends State<DateSelectorWidget> {
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_month, color: theme.colorScheme.primary),
+            Icon(Icons.date_range, color: theme.colorScheme.primary),
             const SizedBox(width: 12),
-            Text(
-              _dateFormat.format(_selectedDate),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                _selectedRange.start.year == _selectedRange.end.year &&
+                        _selectedRange.start.month ==
+                            _selectedRange.end.month &&
+                        _selectedRange.start.day == _selectedRange.end.day
+                    ? _dateFormat.format(_selectedRange.start)
+                    : "${_dateFormat.format(_selectedRange.start)} - ${_dateFormat.format(_selectedRange.end)}",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const Spacer(),
             const Icon(Icons.arrow_drop_down),
           ],
         ),
