@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/app_export.dart';
-import '../../widgets/custom_app_bar.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; 
 import 'dart:typed_data';
+import 'package:lottie/lottie.dart'; 
+
+import '../../core/app_export.dart';
+import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import './widgets/greeting_header_widget.dart';
 import './widgets/rice_variety_selector_widget.dart';
@@ -198,9 +200,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
 
       if (activate && mounted) {
-        // -------------------------------------------------------------
-        // FIX: This safely replaces the screen instead of piling on top
-        // -------------------------------------------------------------
         Navigator.pushReplacementNamed(context, '/analysis-screen');
       }
     } catch (e) {
@@ -288,9 +287,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
+      backgroundColor: Colors.transparent, // Ensures scaffold doesn't block Lottie
+      extendBody: true, // Crucial for full bleed
       appBar: CustomAppBar(
         title: 'DryCe Monitor',
-        automaticallyImplyLeading: false, // Ensures no back button ever shows here!
+        automaticallyImplyLeading: false, 
         showNotifications: true,
         showSyncStatus: true,
         syncStatus: true,
@@ -299,171 +300,192 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .length,
         onNotificationTap: _showNotifications,
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _sensorStream,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.cloud_off_rounded,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "Connection Timeout",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-                    child: Text(
-                      "The server connection timed out. Please check your internet or retry.",
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {}); 
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text("RETRY CONNECTION"),
-                  ),
-                ],
-              ),
-            );
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final allSensors = snapshot.data!;
-          _handleNotifications(allSensors);
-
-          final moistureSensors = allSensors
-              .where((s) => s['id'].toString().startsWith('MSENSOR'))
-              .toList();
-
-          final tempRow = allSensors.firstWhere(
-            (s) => s['id'] == "TEMPERATURE",
-            orElse: () => {"temperature": 0.0},
-          );
-          double currentTemp = (tempRow['temperature'] as num? ?? 0.0)
-              .toDouble();
-
-          return CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    GreetingHeaderWidget(
-                      userName: _isLoadingProfile ? "..." : _fullName,
-                    ),
-                    const SizedBox(height: 16),
-                    RiceVarietySelectorWidget(
-                      selectedVariety: _selectedRiceVariety ?? '',
-                      varieties: const [
-                        'Basmati',
-                        'Jasmine',
-                        'Long Grain',
-                        'Short Grain',
-                        'Brown Rice',
-                      ],
-                      onVarietyChanged: (val) async {
-                        if (val != null) {
-                          setState(() => _selectedRiceVariety = val);
-                          try {
-                            await Supabase.instance.client
-                                .from('sensors')
-                                .update({
-                                  'rice_variety': val,
-                                  'last_update': DateTime.now()
-                                      .toUtc()
-                                      .toIso8601String(),
-                                })
-                                .like('id', 'MSENSOR%');
-
-                            debugPrint("Variety updated in Supabase to: $val");
-                          } catch (e) {
-                            debugPrint("Error updating variety: $e");
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("Failed to sync variety: $e"),
-                                ),
-                              );
-                            }
-                          }
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    _buildSectionHeader(theme, moistureSensors),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.62,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final sensor = moistureSensors[index];
-                    return SensorCardWidget(
-                      sensorId: sensor["id"]?.toString() ?? "N/A",
-                      moisturePercentage:
-                          (sensor["moisture_percentage"] as num? ?? 0)
-                              .toDouble(),
-                      temperature: (sensor["temperature"] as num? ?? 0)
-                          .toDouble(),
-                      status: sensor["status"]?.toString() ?? "Offline",
-                      lastUpdate:
-                          DateTime.tryParse(sensor["last_update"] ?? "") ??
-                          DateTime.now(),
-                      startTime: sensor["last_started_at"] != null
-                          ? DateTime.tryParse(sensor["last_started_at"])
-                          : null,
-                      connectionStatus:
-                          sensor["connection_status"]?.toString() ??
-                          "Disconnected",
-                      riceVariety: sensor["rice_variety"]?.toString() ?? "",
-                      isActive: sensor["is_active"] ?? false,
-                      onTap: () {},
-                    );
-                  }, childCount: moistureSensors.length),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+      body: Stack(
+        children: [
+          // 1. Background Layer: Lottie Animation
+          Positioned.fill(
+            child: Lottie.asset(
+              'assets/newback.json', 
+              fit: BoxFit.cover, 
+              repeat: true, 
+            ),
+          ),
+          
+          // 2. Foreground Layer: Your existing Dashboard Content
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: _sensorStream,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        "Heater Monitoring",
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                      Icon(
+                        Icons.cloud_off_rounded,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Connection Timeout",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                        child: Text(
+                          "The server connection timed out. Please check your internet or retry.",
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      _buildHeaterCard(currentTemp),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {}); 
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text("RETRY CONNECTION"),
+                      ),
                     ],
                   ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 80)),
-            ],
-          );
-        },
+                );
+              }
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final allSensors = snapshot.data!;
+              _handleNotifications(allSensors);
+
+              final moistureSensors = allSensors
+                  .where((s) => s['id'].toString().startsWith('MSENSOR'))
+                  .toList();
+
+              final tempRow = allSensors.firstWhere(
+                (s) => s['id'] == "TEMPERATURE",
+                orElse: () => {"temperature": 0.0},
+              );
+              double currentTemp = (tempRow['temperature'] as num? ?? 0.0)
+                  .toDouble();
+
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      children: [
+                        GreetingHeaderWidget(
+                          userName: _isLoadingProfile ? "..." : _fullName,
+                        ),
+                        const SizedBox(height: 16),
+                        RiceVarietySelectorWidget(
+                          selectedVariety: _selectedRiceVariety ?? '',
+                          varieties: const [
+                            'Basmati',
+                            'Jasmine',
+                            'Long Grain',
+                            'Short Grain',
+                            'Brown Rice',
+                          ],
+                          onVarietyChanged: (val) async {
+                            if (val != null) {
+                              setState(() => _selectedRiceVariety = val);
+                              try {
+                                await Supabase.instance.client
+                                    .from('sensors')
+                                    .update({
+                                      'rice_variety': val,
+                                      'last_update': DateTime.now()
+                                          .toUtc()
+                                          .toIso8601String(),
+                                    })
+                                    .like('id', 'MSENSOR%');
+
+                                debugPrint("Variety updated in Supabase to: $val");
+                              } catch (e) {
+                                debugPrint("Error updating variety: $e");
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Failed to sync variety: $e"),
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        _buildSectionHeader(theme, moistureSensors),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.62,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final sensor = moistureSensors[index];
+                        return SensorCardWidget(
+                          sensorId: sensor["id"]?.toString() ?? "N/A",
+                          moisturePercentage:
+                              (sensor["moisture_percentage"] as num? ?? 0)
+                                  .toDouble(),
+                          temperature: (sensor["temperature"] as num? ?? 0)
+                              .toDouble(),
+                          status: sensor["status"]?.toString() ?? "Offline",
+                          lastUpdate:
+                              DateTime.tryParse(sensor["last_update"] ?? "") ??
+                              DateTime.now(),
+                          startTime: sensor["last_started_at"] != null
+                              ? DateTime.tryParse(sensor["last_started_at"])
+                              : null,
+                          connectionStatus:
+                              sensor["connection_status"]?.toString() ??
+                              "Disconnected",
+                          riceVariety: sensor["rice_variety"]?.toString() ?? "",
+                          isActive: sensor["is_active"] ?? false,
+                          onTap: () {},
+                        );
+                      }, childCount: moistureSensors.length),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Heater Monitoring",
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildHeaterCard(currentTemp),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Increased height here to prevent bottom bar from blocking content
+                  const SliverToBoxAdapter(child: SizedBox(height: 140)),
+                ],
+              );
+            },
+          ),
+          
+          // 3. Floating Bottom Bar
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: CustomBottomBar(currentRoute: '/dashboard-screen'),
+          ),
+        ],
       ),
-      bottomNavigationBar: CustomBottomBar(currentRoute: '/dashboard-screen'),
+      // bottomNavigationBar removed entirely from here!
     );
   }
 

@@ -17,6 +17,7 @@ dependencies:
   shared_preferences: ^2.2.2 # Required for local data storage
   web: ^1.1.1
   image_picker: ^1.0.7
+  lottie: ^3.1.2
   
   
   # Feature dependencies - safe to modify
@@ -38,6 +39,7 @@ flutter:
     - assets/power-button.png
     - assets/Gemini_Generated_Image_sr9q1dsr9q1dsr9q.png
     - assets/loginbackground.png
+    - assets/newback.json
    
 
   # CRITICAL ASSET MANAGEMENT RULES:
