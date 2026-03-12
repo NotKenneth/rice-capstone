@@ -17,16 +17,30 @@ class MoistureTrendChartWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Determine the maximum time reached to scale the X-axis
-    double maxTime = 30.0; // Start with at least a 30-min window
-    for (var sensor in chartData) {
-      if (sensor['maxMinute'] != null && sensor['maxMinute'] > maxTime) {
-        maxTime = (sensor['maxMinute'] as num).toDouble();
+    // Calculate X-Axis Range
+    double maxTime = 30.0;
+    for (var session in chartData) {
+      if (selectedVarieties.contains(session['variety'])) {
+        final List rawLogs = session['chartData'] as List? ?? [];
+        if (rawLogs.isNotEmpty) {
+          try {
+            DateTime start = DateTime.parse(
+              rawLogs.first['recorded_at'].toString(),
+            );
+            DateTime end = DateTime.parse(
+              rawLogs.last['recorded_at'].toString(),
+            );
+            double duration = end.difference(start).inSeconds / 60.0;
+            if (duration > maxTime) maxTime = duration;
+          } catch (e) {
+            debugPrint("X-Axis Calc Error: $e");
+          }
+        }
       }
     }
 
-    // Round maxX up to the next 30-minute interval for clean legends
     double maxX = ((maxTime / 30).ceil() * 30.0);
+    if (maxX == 0) maxX = 30.0;
 
     return Container(
       padding: const EdgeInsets.only(right: 20, left: 10, top: 20, bottom: 10),
@@ -34,26 +48,30 @@ class MoistureTrendChartWidget extends StatelessWidget {
         height: 300,
         child: LineChart(
           LineChartData(
-            // FORCE START AT LEFT
             minX: 0,
             maxX: maxX,
-            minY: 5,
-            maxY: 35,
-
-            // Clip data to prevent lines from bleeding into legends
+            minY: 0,
+            maxY: 40,
             clipData: const FlClipData.all(),
-
-            borderData: FlBorderData(
-              show: true,
-              border: Border(
-                bottom: BorderSide(color: theme.dividerColor, width: 1),
-                left: BorderSide(color: theme.dividerColor, width: 1),
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                tooltipBgColor: theme.colorScheme.surface.withOpacity(0.9),
+                getTooltipItems: (spots) => spots
+                    .map(
+                      (s) => LineTooltipItem(
+                        '${s.y.toStringAsFixed(1)}%',
+                        TextStyle(
+                          color: s.bar.color ?? Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
 
             titlesData: FlTitlesData(
               show: true,
-              // X-AXIS: Show labels every 30 minutes
               bottomTitles: AxisTitles(
                 axisNameWidget: const Text(
                   "Elapsed Time (Minutes)",
@@ -61,23 +79,19 @@ class MoistureTrendChartWidget extends StatelessWidget {
                 ),
                 sideTitles: SideTitles(
                   showTitles: true,
-                  interval: 30, // <--- FORCES 30 MINUTE STEPS
-                  reservedSize: 35,
-                  getTitlesWidget: (value, meta) {
-                    return SideTitleWidget(
-                      axisSide: meta.axisSide,
-                      child: Text(
-                        '${value.toInt()}m',
-                        style: const TextStyle(fontSize: 10),
-                      ),
-                    );
-                  },
+                  interval: 30,
+                  getTitlesWidget: (value, meta) => SideTitleWidget(
+                    axisSide: meta.axisSide,
+                    child: Text(
+                      '${value.toInt()}m',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                  ),
                 ),
               ),
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 40,
                   interval: 5,
                   getTitlesWidget: (value, meta) => Text(
                     '${value.toInt()}%',
@@ -95,15 +109,14 @@ class MoistureTrendChartWidget extends StatelessWidget {
 
             gridData: FlGridData(
               show: true,
-              drawVerticalLine: true,
               horizontalInterval: 5,
-              verticalInterval: 30, // Grid lines align with 30m labels
-              getDrawingHorizontalLine: (value) => FlLine(
-                color: theme.dividerColor.withOpacity(0.05),
+              verticalInterval: 30,
+              getDrawingHorizontalLine: (v) => FlLine(
+                color: theme.dividerColor.withOpacity(0.1),
                 strokeWidth: 1,
               ),
-              getDrawingVerticalLine: (value) => FlLine(
-                color: theme.dividerColor.withOpacity(0.05),
+              getDrawingVerticalLine: (v) => FlLine(
+                color: theme.dividerColor.withOpacity(0.1),
                 strokeWidth: 1,
               ),
             ),
@@ -111,29 +124,45 @@ class MoistureTrendChartWidget extends StatelessWidget {
             lineBarsData: varieties
                 .where((v) => selectedVarieties.contains(v['name']))
                 .map((variety) {
-                  // Find the data specific to this sensor/variety
-                  // Based on our _fetchAllSensorsHistory logic
-                  final sensorData = chartData.firstWhere(
+                  final session = chartData.firstWhere(
                     (d) =>
-                        d['variety'].toString().contains(variety['name']) ||
-                        d['variety'].toString().contains(
-                          selectedVarieties.indexOf(variety['name']).toString(),
-                        ),
+                        d['variety'].toString() == variety['name'].toString(),
                     orElse: () => {'chartData': []},
                   );
 
+                  final List rawLogs = session['chartData'] as List? ?? [];
+                  if (rawLogs.isEmpty) return LineChartBarData(spots: []);
+
+                  DateTime sessionStart = DateTime.parse(
+                    rawLogs.first['recorded_at'].toString(),
+                  );
+
+                  List<FlSpot> spots = rawLogs.map((log) {
+                    DateTime logTime = DateTime.parse(
+                      log['recorded_at'].toString(),
+                    );
+                    double minutes =
+                        logTime.difference(sessionStart).inSeconds / 60.0;
+                    double moisture =
+                        (log['moisture_percentage'] as num? ?? 0.0).toDouble();
+                    return FlSpot(minutes, moisture);
+                  }).toList();
+
+                  spots.sort((a, b) => a.x.compareTo(b.x));
+
                   return LineChartBarData(
-                    spots: (sensorData['chartData'] as List).map((d) {
-                      return FlSpot(d['minute'], d['moisture']);
-                    }).toList(),
+                    spots: spots,
                     isCurved: true,
                     color: variety['color'] as Color,
-                    barWidth: 2.5,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(show: false),
+                    barWidth: 3,
+                    dotData: const FlDotData(show: true),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: (variety['color'] as Color).withOpacity(0.1),
+                    ),
                   );
                 })
+                .where((bar) => bar.spots.isNotEmpty)
                 .toList(),
           ),
         ),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'; 
+import '../../core/app_export.dart';
+import '../../widgets/custom_app_bar.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:typed_data';
 import 'package:lottie/lottie.dart'; 
 
@@ -28,6 +31,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String _fullName = "Farmer";
   bool _isLoadingProfile = true;
+
+  final TextEditingController _weightController = TextEditingController();
+  double? _enteredWeight;
+
+  @override
+  void dispose() {
+    _weightController.dispose();
+    super.dispose();
+  }
 
   final Stream<List<Map<String, dynamic>>> _sensorStream = Supabase
       .instance
@@ -84,7 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final Int64List vibrationPattern = Int64List.fromList([0, 1000, 500, 1000]);
 
     AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'dryce_alerts_channel', 
+      'dryce_alerts_channel',
       'DryCe Critical Alerts',
       importance: Importance.max,
       priority: Priority.high,
@@ -113,16 +125,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     List<Map<String, dynamic>> moistureSensors,
     bool activate,
   ) async {
-    if (activate &&
-        (_selectedRiceVariety == null || _selectedRiceVariety!.isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Please select a Rice Variety before starting."),
-          backgroundColor: Colors.orange[800],
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
+    if (activate) {
+      bool isVarietyMissing =
+          _selectedRiceVariety == null || _selectedRiceVariety!.isEmpty;
+      bool isWeightMissing = _enteredWeight == null || _enteredWeight! <= 0;
+
+      if (isVarietyMissing || isWeightMissing) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isVarietyMissing
+                  ? "Please select a Rice Variety before starting."
+                  : "Please enter a valid weight (kg) before starting.",
+            ),
+            backgroundColor: Colors.orange[800],
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
     }
 
     if (moistureSensors.isEmpty) return;
@@ -133,7 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: Text(activate ? "Start System?" : "Stop System?"),
         content: Text(
           activate
-              ? "Activate drying process for $_selectedRiceVariety?"
+              ? "Activate drying process for $_selectedRiceVariety at ${_enteredWeight}kg?"
               : "Stop all active sensors and save analysis for today?",
         ),
         actions: [
@@ -157,7 +178,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     setState(() => _isBulkUpdating = true);
 
-    final String sessionVariety = _selectedRiceVariety ?? "Unknown";
+    String currentSelection = _selectedRiceVariety ?? "";
+
+    if (!activate) {
+      try {
+        final activeSensor = moistureSensors.firstWhere(
+          (s) => s['is_active'] == true,
+        );
+        currentSelection = activeSensor['rice_variety']?.toString() ?? "";
+      } catch (e) {
+        currentSelection = "";
+      }
+    }
+    final double currentWeight = _enteredWeight ?? 0.0;
+    final String nowIso = DateTime.now().toUtc().toIso8601String();
+
     try {
       final List<String> idsToUpdate = moistureSensors
           .map((s) => s['id'].toString())
@@ -166,7 +201,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!idsToUpdate.contains('TEMPERATURE')) {
         idsToUpdate.add('TEMPERATURE');
       }
-      final String nowIso = DateTime.now().toUtc().toIso8601String();
 
       await Supabase.instance.client
           .from('sensors')
@@ -174,7 +208,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'is_active': activate,
             'last_started_at': activate ? nowIso : null,
             'last_update': nowIso,
-            'rice_variety': activate ? _selectedRiceVariety : "EMPTY",
+            'rice_variety': activate ? currentSelection : "",
           })
           .inFilter('id', idsToUpdate);
 
@@ -182,12 +216,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         sensor,
       ) {
         return {
-          'sensor_id': sensor['id'],
-          'moisture_percentage': (sensor['moisture_percentage'] as num? ?? 0)
+          'sensor_id': sensor['id'].toString(),
+          'moisture_percentage': (sensor['moisture_percentage'] as num? ?? 0.0)
               .toDouble(),
-          'temperature': (sensor['temperature'] as num? ?? 0).toDouble(),
+          'temperature': (sensor['temperature'] as num? ?? 27.5).toDouble(),
           'recorded_at': nowIso,
-          'rice_variety': sessionVariety,
+          'rice_variety': currentSelection,
+          'weight': currentWeight,
         };
       }).toList();
 
@@ -196,8 +231,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .insert(historyEntries);
 
       debugPrint(
-        "System ${activate ? 'Started' : 'Stopped'}. Final snapshot stored.",
+        "System ${activate ? 'Started' : 'Stopped'}. Variety saved: $currentSelection",
       );
+
+      if (!activate) {
+        _weightController.clear();
+        _enteredWeight = null;
+        _selectedRiceVariety = null;
+      }
 
       if (activate && mounted) {
         Navigator.pushReplacementNamed(context, '/analysis-screen');
@@ -207,7 +248,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+        ).showSnackBar(SnackBar(content: Text("Error saving data: $e")));
       }
     } finally {
       if (mounted) {
@@ -219,6 +260,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _handleNotifications(List<Map<String, dynamic>> sensors) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       bool updated = false;
+
+      final moistureSensors = sensors
+          .where((s) => s['id'].toString().startsWith('MSENSOR'))
+          .toList();
+
+      int readyCount = 0;
       for (var s in sensors) {
         if (s['is_active'] == true) {
           double m = (s['moisture_percentage'] as num? ?? 0).toDouble();
@@ -226,18 +273,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
           String id = s['id']?.toString() ?? "Unknown";
 
           if (m > 0 && m <= 12.4) {
-            if (_addToBell(id, "Target moisture reached", true)) updated = true;
+            readyCount++;
+            if (_addToBell(
+              id,
+              "Target moisture reached: ${m.toStringAsFixed(1)}%",
+              "target",
+            ))
+              updated = true;
+          } else if (m > 12.4 && m <= 13.5) {
+            if (_addToBell(
+              id,
+              "Approaching target moisture: ${m.toStringAsFixed(1)}%",
+              "approach",
+            ))
+              updated = true;
           }
+
           if (t > 45.0) {
-            if (_addToBell(id, "High Temp Alert: ${t}°C", true)) updated = true;
+            if (_addToBell(
+              id,
+              "LIMIT REACHED: ${t.toStringAsFixed(1)}°C",
+              "critical",
+            ))
+              updated = true;
+          } else if (t > 40.0 && t <= 45.0) {
+            if (_addToBell(
+              id,
+              "Approaching temperature limit: ${t.toStringAsFixed(1)}°C",
+              "approach",
+            ))
+              updated = true;
           }
         }
       }
+
+      if (moistureSensors.isNotEmpty && readyCount == moistureSensors.length) {
+        if (_addToBell("SYSTEM", "ALL GRAINS ARE READY!", "ready"))
+          updated = true;
+      }
+
       if (updated && mounted) setState(() {});
     });
   }
 
-  bool _addToBell(String sensorId, String message, bool isCritical) {
+  bool _addToBell(String sensorId, String message, String status) {
     final now = DateTime.now();
     bool exists = _notifications.any(
       (n) =>
@@ -247,13 +326,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     if (!exists) {
-      _triggerSystemNotification("Critical Alert: $sensorId", message);
+      _triggerSystemNotification("DryCe Alert: $sensorId", message);
 
       _notifications.insert(0, {
         'sensorId': sensorId,
         'message': message,
         'time': now,
-        'isCritical': isCritical,
+        'status': status,
         'isRead': false,
       });
       return true;
@@ -291,7 +370,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       extendBody: true, // Crucial for full bleed
       appBar: CustomAppBar(
         title: 'DryCe Monitor',
-        automaticallyImplyLeading: false, 
+        automaticallyImplyLeading: false,
         showNotifications: true,
         showSyncStatus: true,
         syncStatus: true,
@@ -300,115 +379,110 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .length,
         onNotificationTap: _showNotifications,
       ),
-      body: Stack(
-        children: [
-          // 1. Background Layer: Lottie Animation
-          Positioned.fill(
-            child: Lottie.asset(
-              'assets/newwwww.json', 
-              fit: BoxFit.cover, 
-              repeat: true, 
-            ),
-          ),
-          
-          // 2. Foreground Layer: Your existing Dashboard Content
-          StreamBuilder<List<Map<String, dynamic>>>(
-            stream: _sensorStream,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.cloud_off_rounded,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "Connection Timeout",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-                        child: Text(
-                          "The server connection timed out. Please check your internet or retry.",
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          setState(() {}); 
-                        },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text("RETRY CONNECTION"),
-                      ),
-                    ],
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _sensorStream,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 64,
+                    color: Colors.grey[400],
                   ),
-                );
-              }
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Connection Timeout",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                    child: Text(
+                      "The server connection timed out. Please check your internet or retry.",
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {});
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text("RETRY CONNECTION"),
+                  ),
+                ],
+              ),
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              final allSensors = snapshot.data!;
-              _handleNotifications(allSensors);
+          final allSensors = snapshot.data!;
 
-              final moistureSensors = allSensors
-                  .where((s) => s['id'].toString().startsWith('MSENSOR'))
-                  .toList();
+          _handleNotifications(allSensors);
 
-              final tempRow = allSensors.firstWhere(
-                (s) => s['id'] == "TEMPERATURE",
-                orElse: () => {"temperature": 0.0},
-              );
-              double currentTemp = (tempRow['temperature'] as num? ?? 0.0)
-                  .toDouble();
+          final moistureSensors = allSensors
+              .where((s) => s['id'].toString().startsWith('MSENSOR'))
+              .toList();
 
-              return CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Column(
-                      children: [
-                        GreetingHeaderWidget(
-                          userName: _isLoadingProfile ? "..." : _fullName,
-                        ),
-                        const SizedBox(height: 16),
-                        RiceVarietySelectorWidget(
-                          selectedVariety: _selectedRiceVariety ?? '',
-                          varieties: const [
-                            'Basmati',
-                            'Jasmine',
-                            'Long Grain',
-                            'Short Grain',
-                            'Brown Rice',
-                          ],
-                          onVarietyChanged: (val) async {
-                            if (val != null) {
-                              setState(() => _selectedRiceVariety = val);
-                              try {
-                                await Supabase.instance.client
-                                    .from('sensors')
-                                    .update({
-                                      'rice_variety': val,
-                                      'last_update': DateTime.now()
-                                          .toUtc()
-                                          .toIso8601String(),
-                                    })
-                                    .like('id', 'MSENSOR%');
+          moistureSensors.sort((a, b) {
+            int idA =
+                int.tryParse(
+                  a['id'].toString().replaceAll(RegExp(r'[^0-9]'), ''),
+                ) ??
+                0;
+            int idB =
+                int.tryParse(
+                  b['id'].toString().replaceAll(RegExp(r'[^0-9]'), ''),
+                ) ??
+                0;
+            return idA.compareTo(idB);
+          });
 
-                                debugPrint("Variety updated in Supabase to: $val");
-                              } catch (e) {
-                                debugPrint("Error updating variety: $e");
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text("Failed to sync variety: $e"),
-                                    ),
-                                  );
-                                }
-                              }
+          final tempRow = allSensors.firstWhere(
+            (s) => s['id'] == "TEMPERATURE",
+            orElse: () => {"temperature": 27.5},
+          );
+          double currentTemp = (tempRow['temperature'] as num? ?? 27.5)
+              .toDouble();
+
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    GreetingHeaderWidget(
+                      userName: _isLoadingProfile ? "..." : _fullName,
+                    ),
+                    const SizedBox(height: 16),
+                    RiceVarietySelectorWidget(
+                      selectedVariety: _selectedRiceVariety ?? '',
+                      varieties: const ['RC 160', 'RC 402', 'RC 216'],
+                      onVarietyChanged: (val) async {
+                        if (val != null) {
+                          setState(() => _selectedRiceVariety = val);
+                          try {
+                            await Supabase.instance.client
+                                .from('sensors')
+                                .update({
+                                  'rice_variety': val,
+                                  'last_update': DateTime.now()
+                                      .toUtc()
+                                      .toIso8601String(),
+                                })
+                                .like('id', 'MSENSOR%');
+
+                            debugPrint("Variety updated in Supabase to: $val");
+                          } catch (e) {
+                            debugPrint("Error updating variety: $e");
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Failed to sync variety: $e"),
+                                ),
+                              );
                             }
                           },
                         ),
@@ -417,24 +491,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         const SizedBox(height: 16),
                       ],
                     ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.62,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32.0,
+                        vertical: 12.0,
                       ),
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final sensor = moistureSensors[index];
-                        return SensorCardWidget(
-                          sensorId: sensor["id"]?.toString() ?? "N/A",
-                          moisturePercentage:
-                              (sensor["moisture_percentage"] as num? ?? 0)
-                                  .toDouble(),
-                          temperature: (sensor["temperature"] as num? ?? 0)
+                      child: TextField(
+                        controller: _weightController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        decoration: InputDecoration(
+                          labelText: "Total Grain Weight (kg)",
+                          labelStyle: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                          hintText: "Enter weight...",
+                          prefixIcon: Icon(
+                            Icons.scale_rounded,
+                            color: theme.colorScheme.primary,
+                          ),
+                          filled: true,
+                          fillColor: theme.colorScheme.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _enteredWeight = double.tryParse(value);
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildSectionHeader(theme, moistureSensors),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.62,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final sensor = moistureSensors[index];
+                    String displayId =
+                        sensor["id"]?.toString().replaceAll(
+                          'MSENSOR',
+                          'Area ',
+                        ) ??
+                        "N/A";
+                    return SensorCardWidget(
+                      sensorId: displayId,
+                      moisturePercentage:
+                          (sensor["moisture_percentage"] as num? ?? 0)
                               .toDouble(),
                           status: sensor["status"]?.toString() ?? "Offline",
                           lastUpdate:
@@ -577,7 +698,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         : Icons.play_circle_outline,
                     size: 18,
                   ),
-                  label: Text(anyActive ? "STOP ALL" : "START ALL"),
+                  label: Text(anyActive ? "STOP" : "START"),
                   style: TextButton.styleFrom(
                     foregroundColor: anyActive
                         ? Colors.red[700]
@@ -601,35 +722,98 @@ class _NotificationListSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
-      height: 400,
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+      height: 450,
       child: Column(
         children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                "Alerts",
+                "System Alerts",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              TextButton(onPressed: onClear, child: const Text("Clear All")),
+              if (notifications.isNotEmpty)
+                TextButton.icon(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.clear_all),
+                  label: const Text("Clear All"),
+                ),
             ],
           ),
           const Divider(),
-          if (notifications.isEmpty)
-            const Expanded(child: Center(child: Text("No new alerts"))),
           Expanded(
             child: ListView.builder(
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final n = notifications[index];
-                return ListTile(
-                  leading: Icon(
-                    Icons.warning,
-                    color: n['isCritical'] ? Colors.red : Colors.orange,
+                final String status = n['status'] ?? '';
+
+                Color alertColor;
+                IconData icon;
+
+                switch (status) {
+                  case 'ready':
+                    alertColor = Colors.green;
+                    icon = Icons.check_circle;
+                    break;
+                  case 'target':
+                    alertColor = Colors.orange;
+                    icon = Icons.stars;
+                    break;
+                  case 'approach':
+                    alertColor = Colors.yellow[700]!;
+                    icon = Icons.access_time_filled;
+                    break;
+                  case 'critical':
+                    alertColor = Colors.red;
+                    icon = Icons.gpp_maybe;
+                    break;
+                  default:
+                    alertColor = Colors.blueGrey;
+                    icon = Icons.notifications;
+                }
+
+                return Card(
+                  elevation: 0,
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: alertColor, width: 2),
                   ),
-                  title: Text("${n['sensorId']}: ${n['message']}"),
-                  subtitle: Text("${n['time'].hour}:${n['time'].minute}"),
+                  color: alertColor.withOpacity(0.08),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: alertColor,
+                      child: Icon(icon, color: Colors.white, size: 20),
+                    ),
+                    title: Text(
+                      n['sensorId'],
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          n['message'],
+                          style: TextStyle(color: Colors.grey[800]),
+                        ),
+                        Text(
+                          DateFormat('jm').format(n['time']),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               },
             ),
