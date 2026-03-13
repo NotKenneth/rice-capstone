@@ -10,6 +10,7 @@ dependencies:
   supabase_flutter: ^2.0.0
   flutter:       # CRITICAL: Required for every Flutter project - DO NOT REMOVE
     sdk: flutter # CRITICAL: Required for every Flutter project - DO NOT REMOVE
+  flutter_background_service: ^5.0.0
   flutter_local_notifications: ^17.0.0
   sizer: ^2.0.15              # Required for responsive design system
   flutter_svg: ^2.0.9        # Required for SVG icon support
@@ -42,6 +43,7 @@ flutter:
     - assets/power-button.png
     - assets/Gemini_Generated_Image_sr9q1dsr9q1dsr9q.png
     - assets/loginbackground.png
+
    
 
   # CRITICAL ASSET MANAGEMENT RULES:

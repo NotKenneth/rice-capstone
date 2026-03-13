@@ -1,3 +1,4 @@
+import 'package:dryce_monitoring_system/presentation/analysis_screen/widgets/rice_variety_filter_widget.dart';
 import 'package:dryce_monitoring_system/widgets/custom_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -36,6 +37,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   List<Map<String, dynamic>> _sensorHistoricalData = [];
 
+  List<String> _selectedVarieties = [];
+  List<Map<String, dynamic>> _availableVarieties = [];
+
+  List<Map<String, dynamic>> get _filteredData {
+    return _sensorHistoricalData.where((session) {
+      final variety = session['variety'] ?? 'Unknown';
+      return _selectedVarieties.contains(variety);
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +65,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       if (mounted) {
         setState(() {
           _sensorHistoricalData = sessions;
+          _extractAvailableVarieties(sessions);
         });
       }
     } catch (e) {
@@ -65,69 +77,114 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
   }
 
-  // Logic to group raw sensor logs into logical "Drying Sessions"
+  void _extractAvailableVarieties(List<Map<String, dynamic>> sessions) {
+    final Set<String> uniqueVarieties = {};
+    for (var session in sessions) {
+      final variety = session['variety'] ?? 'Unknown';
+      if (variety != 'Standard' && variety != 'Unknown') {
+        uniqueVarieties.add(variety);
+      }
+    }
+
+    final List<Color> palette = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.red,
+      Colors.teal,
+    ];
+    int colorIdx = 0;
+
+    _availableVarieties = uniqueVarieties.map((v) {
+      return {'name': v, 'color': palette[(colorIdx++) % palette.length]};
+    }).toList();
+    _selectedVarieties = uniqueVarieties.toList();
+  }
+
   List<Map<String, dynamic>> _groupIntoSessions(
     List<Map<String, dynamic>> rawData,
   ) {
     if (rawData.isEmpty) return [];
 
-    // Sort by time first to ensure chronological processing
-    rawData.sort(
-      (a, b) => DateTime.parse(
-        a['recorded_at'],
-      ).compareTo(DateTime.parse(b['recorded_at'])),
-    );
+    // 1. Group the raw data by Variety FIRST to prevent interwoven logs from breaking the batches
+    Map<String, List<Map<String, dynamic>>> logsByVariety = {};
+    for (var record in rawData) {
+      String variety = record['rice_variety'] ?? 'Unknown';
+      logsByVariety.putIfAbsent(variety, () => []);
+      logsByVariety[variety]!.add(record);
+    }
 
-    List<Map<String, dynamic>> sessions = [];
-    List<Map<String, dynamic>> currentBatch = [];
+    List<Map<String, dynamic>> finalSessions = [];
     const sessionGap = Duration(minutes: 30);
 
-    for (var record in rawData) {
-      if (currentBatch.isEmpty) {
-        currentBatch.add(record);
-        continue;
-      }
+    // 2. Process each variety's logs completely independently
+    logsByVariety.forEach((variety, varietyLogs) {
+      // Sort this specific variety's logs chronologically
+      varietyLogs.sort(
+        (a, b) => DateTime.parse(
+          a['recorded_at'],
+        ).compareTo(DateTime.parse(b['recorded_at'])),
+      );
 
-      DateTime lastTime = DateTime.parse(currentBatch.last['recorded_at']);
-      DateTime currentTime = DateTime.parse(record['recorded_at']);
+      List<Map<String, dynamic>> currentBatch = [];
 
-      if (record['rice_variety'] == currentBatch.last['rice_variety'] &&
-          currentTime.difference(lastTime) <= sessionGap) {
-        currentBatch.add(record);
-      } else {
-        // --- IMPROVEMENT: Only add sessions that have meaningful data ---
-        final processed = _processSession(List.from(currentBatch));
-        // Ignore sessions with 0 duration to fix the 15.8% average skew
-        if (processed['durationValue'] > 0) {
-          sessions.add(processed);
+      for (var record in varietyLogs) {
+        if (currentBatch.isEmpty) {
+          currentBatch.add(record);
+          continue;
         }
-        currentBatch = [record];
-      }
-    }
 
-    if (currentBatch.isNotEmpty) {
-      final processed = _processSession(List.from(currentBatch));
-      if (processed['durationValue'] > 0) {
-        sessions.add(processed);
-      }
-    }
+        DateTime lastTime = DateTime.parse(currentBatch.last['recorded_at']);
+        DateTime currentTime = DateTime.parse(record['recorded_at']);
 
-    return sessions.reversed.toList();
+        // Check if the time gap is within our 30-minute window
+        if (currentTime.difference(lastTime) <= sessionGap) {
+          currentBatch.add(record);
+        } else {
+          // Gap is too big, close the batch and process it
+          final processed = _processSession(List.from(currentBatch));
+          if (processed['durationValue'] >= 0 &&
+              processed['chartData'].isNotEmpty) {
+            finalSessions.add(processed);
+          }
+          currentBatch = [record]; // Start a new batch
+        }
+      }
+
+      // Process the final lingering batch for this variety
+      if (currentBatch.isNotEmpty) {
+        final processed = _processSession(List.from(currentBatch));
+        if (processed['durationValue'] >= 0 &&
+            processed['chartData'].isNotEmpty) {
+          finalSessions.add(processed);
+        }
+      }
+    });
+
+    // 3. Sort all the final sessions so the newest ones appear at the top
+    finalSessions.sort((a, b) {
+      DateTime timeA = DateTime.parse(a['chartData'].first['recorded_at']);
+      DateTime timeB = DateTime.parse(b['chartData'].first['recorded_at']);
+      return timeB.compareTo(timeA); // Descending order
+    });
+
+    return finalSessions;
   }
 
   Map<String, dynamic> _processSession(List<Map<String, dynamic>> records) {
     // 1. HARDWARE FILTER: Define your physical sensor IDs
-    const validIds = [
+    /*const validIds = [
       'MSENSOR-001',
       'MSENSOR-002',
       'MSENSOR-003',
       'MSENSOR-004',
-    ];
+    ];*/
 
     // Only keep records from actual sensors
-    final hardwareRecords = records
-        .where((r) => validIds.contains(r['sensor_id']))
-        .toList();
+    final hardwareRecords = records;
+    /*  .where((r) => validIds.contains(r['sensor_id']))
+        .toList();*/
 
     if (hardwareRecords.isEmpty) {
       return {
@@ -239,14 +296,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       // Use a try-catch inside the group function to prevent UI hangs
       return _groupIntoSessions(List<Map<String, dynamic>>.from(rawData));
     } catch (e) {
-      debugPrint("Fetch Error: $e");
+      debugPrint("🔍 RAW SUPABASE FETCH: Found $e total records for this day.");
       // Ensure you show a message to the user or stop the loader in the parent
       return [];
     }
   }
 
   Future<void> _exportData() async {
-    if (_sensorHistoricalData.isEmpty) return;
+    //if (_sensorHistoricalData.isEmpty) return;
+    if (_filteredData.isEmpty) return;
 
     try {
       setState(() => _isLoading = true);
@@ -259,7 +317,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       rows.add([]);
 
       Map<String, List<Map<String, dynamic>>> groupedData = {};
-      for (var session in _sensorHistoricalData) {
+      for (var session in _filteredData) {
         String variety = session['variety'] ?? 'Unknown';
         groupedData.putIfAbsent(variety, () => []);
         groupedData[variety]!.add(session);
@@ -464,9 +522,26 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           },
                         ),
                       ),
-
+                      if (_availableVarieties.isNotEmpty)
+                        SliverToBoxAdapter(
+                          child: RiceVarietyFilterWidget(
+                            // Crucial: Use a Key so the widget resets when underlying available varieties change
+                            key: ValueKey(
+                              _availableVarieties
+                                  .map((v) => v['name'])
+                                  .join(','),
+                            ),
+                            varieties: _availableVarieties,
+                            initialSelection: _selectedVarieties,
+                            onSelectionChanged: (selected) {
+                              setState(() {
+                                _selectedVarieties = selected;
+                              });
+                            },
+                          ),
+                        ),
                       // No Data State
-                      if (_sensorHistoricalData.isEmpty)
+                      if (_filteredData.isEmpty)
                         SliverFillRemaining(
                           hasScrollBody: false,
                           child: _buildNoDataState(),
@@ -476,7 +551,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         if (_isSingleDaySelected)
                           SliverToBoxAdapter(
                             child: HistoricalDataWidget(
-                              historicalCycles: _sensorHistoricalData,
+                              historicalCycles: _filteredData,
                               onDelete: (dynamic sessionData) {
                                 if (sessionData is Map<String, dynamic>) {
                                   _deleteSession(sessionData);
@@ -484,7 +559,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                   final fullMap = _sensorHistoricalData
                                       .firstWhere(
                                         (s) => s['session_id'] == sessionData,
-                                        orElse: () => {},
+                                        orElse: () => <String, dynamic>{},
                                       );
                                   if (fullMap.isNotEmpty)
                                     _deleteSession(fullMap);
@@ -515,10 +590,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
                         // Data Table
                         SliverToBoxAdapter(
-                          child: _buildAnalysisTable(_sensorHistoricalData),
+                          child: _buildAnalysisTable(_filteredData),
                         ),
 
-                        // Extra padding to ensure content isn't cut off by the button
                         const SliverToBoxAdapter(child: SizedBox(height: 24)),
                       ],
                     ],
@@ -527,7 +601,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
           // 3. Persistent Export Button
           // This only shows if there is actually data to export
-          if (_sensorHistoricalData.isNotEmpty && !_isLoading)
+          if (_filteredData.isNotEmpty && !_isLoading)
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
