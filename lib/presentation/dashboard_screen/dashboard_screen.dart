@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'dart:typed_data';
 import 'package:lottie/lottie.dart'; 
 
@@ -126,15 +127,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bool isVarietyMissing =
           _selectedRiceVariety == null || _selectedRiceVariety!.isEmpty;
       bool isWeightMissing = _enteredWeight == null || _enteredWeight! <= 0;
+      bool isWeightExceeding = _enteredWeight != null && _enteredWeight! > 25.0;
 
-      if (isVarietyMissing || isWeightMissing) {
+      if (isVarietyMissing || isWeightMissing || isWeightExceeding) {
+        String errorMessage;
+        if (isVarietyMissing) {
+          errorMessage = "Please select a Rice Variety before starting.";
+        } else if (isWeightMissing) {
+          errorMessage = "Please enter a valid weight (kg) before starting.";
+        } else {
+          errorMessage = "Weight exceeds maximum capacity of 25kg.";
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              isVarietyMissing
-                  ? "Please select a Rice Variety before starting."
-                  : "Please enter a valid weight (kg) before starting.",
-            ),
+            content: Text(errorMessage),
             backgroundColor: Colors.orange[800],
             behavior: SnackBarBehavior.floating,
           ),
@@ -227,6 +234,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .from('sensor_history')
           .insert(historyEntries);
 
+      final service = FlutterBackgroundService();
+      if (activate) {
+        await service.startService();
+      } else {
+        service.invoke('stopService');
+      }
+
       debugPrint(
         "System ${activate ? 'Started' : 'Stopped'}. Variety saved: $currentSelection",
       );
@@ -269,7 +283,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           double t = (s['temperature'] as num? ?? 0).toDouble();
           String id = s['id']?.toString() ?? "Unknown";
 
-          if (m > 0 && m <= 12.4) {
+          if (m <= 12.4) {
             readyCount++;
             if (_addToBell(
               id,
@@ -277,8 +291,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               "target",
             )) {
               updated = true;
-            }
-          } else if (m > 12.4 && m <= 13.5) {
+          } else if (m <= 13.5) {
             if (_addToBell(
               id,
               "Approaching target moisture: ${m.toStringAsFixed(1)}%",
