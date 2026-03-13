@@ -86,7 +86,7 @@ class GreetingHeaderWidget extends StatelessWidget {
                     _getCurrentDate(),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ],
