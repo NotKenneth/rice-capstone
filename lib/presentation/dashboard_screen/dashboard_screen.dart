@@ -6,6 +6,10 @@ import '../../widgets/custom_app_bar.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'dart:typed_data';
+import 'package:lottie/lottie.dart'; 
+
+import '../../core/app_export.dart';
+import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import './widgets/greeting_header_widget.dart';
 import './widgets/rice_variety_selector_widget.dart';
@@ -376,6 +380,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
+      backgroundColor: Colors.transparent, // Ensures scaffold doesn't block Lottie
+      extendBody: true, // Crucial for full bleed
       appBar: CustomAppBar(
         title: 'DryCe Monitor',
         automaticallyImplyLeading: false,
@@ -492,9 +498,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                               );
                             }
-                          }
-                        }
-                      },
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                        _buildSectionHeader(theme, moistureSensors),
+                        const SizedBox(height: 16),
+                      ],
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(
@@ -562,49 +571,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       moisturePercentage:
                           (sensor["moisture_percentage"] as num? ?? 0)
                               .toDouble(),
-                      temperature: (sensor["temperature"] as num? ?? 0)
-                          .toDouble(),
-                      status: sensor["status"]?.toString() ?? "Offline",
-                      lastUpdate:
-                          DateTime.tryParse(sensor["last_update"] ?? "") ??
-                          DateTime.now(),
-                      startTime: sensor["last_started_at"] != null
-                          ? DateTime.tryParse(sensor["last_started_at"])
-                          : null,
-                      connectionStatus:
-                          sensor["connection_status"]?.toString() ??
-                          "Disconnected",
-                      riceVariety: sensor["rice_variety"]?.toString() ?? "",
-                      isActive: sensor["is_active"] ?? false,
-                      onTap: () {},
-                    );
-                  }, childCount: moistureSensors.length),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Heater Monitoring",
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildHeaterCard(currentTemp),
-                    ],
+                          status: sensor["status"]?.toString() ?? "Offline",
+                          lastUpdate:
+                              DateTime.tryParse(sensor["last_update"] ?? "") ??
+                              DateTime.now(),
+                          startTime: sensor["last_started_at"] != null
+                              ? DateTime.tryParse(sensor["last_started_at"])
+                              : null,
+                          connectionStatus:
+                              sensor["connection_status"]?.toString() ??
+                              "Disconnected",
+                          riceVariety: sensor["rice_variety"]?.toString() ?? "",
+                          isActive: sensor["is_active"] ?? false,
+                          onTap: () {},
+                        );
+                      }, childCount: moistureSensors.length),
+                    ),
                   ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 80)),
-            ],
-          );
-        },
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Heater Monitoring",
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildHeaterCard(currentTemp),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Increased height here to prevent bottom bar from blocking content
+                  const SliverToBoxAdapter(child: SizedBox(height: 140)),
+                ],
+              );
+            },
+          ),
+          
+          // 3. Floating Bottom Bar
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: CustomBottomBar(currentRoute: '/dashboard-screen'),
+          ),
+        ],
       ),
-      bottomNavigationBar: CustomBottomBar(currentRoute: '/dashboard-screen'),
+      // bottomNavigationBar removed entirely from here!
     );
   }
 
