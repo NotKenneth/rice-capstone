@@ -21,6 +21,7 @@ dependencies:
   csv: ^6.0.0
   path_provider: ^2.1.0
   share_plus: ^10.1.0
+  lottie: ^3.3.2
   
   
   # Feature dependencies - safe to modify
