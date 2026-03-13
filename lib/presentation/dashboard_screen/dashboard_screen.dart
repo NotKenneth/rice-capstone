@@ -328,6 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       if (updated && mounted) setState(() {});
+    }
     });
   }
 
@@ -395,11 +396,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: Stack(
         children: [
-          // ---> NEW BACKGROUND ADDED HERE <---
           Positioned.fill(
             child: Lottie.asset(
-              'assets/newwwww.json', // PUT YOUR LOTTIE FILE PATH HERE
-              fit: BoxFit.cover, // Ensures it covers the entire background
+              'assets/newwwww.json', 
+              fit: BoxFit.cover, 
             ),
           ),
           // -----------------------------------
@@ -519,8 +519,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 32.0,
-                        vertical: 12.0,
+                        horizontal: 20.0,
+                        vertical: 40.0,
                       ),
                       child: TextField(
                         controller: _weightController,
