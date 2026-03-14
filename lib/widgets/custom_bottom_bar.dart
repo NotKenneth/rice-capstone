@@ -105,8 +105,8 @@ class CustomBottomBar extends StatelessWidget {
           ),
         Container(
           margin: EdgeInsets.only(
-            left: 50, 
-            right: 50, 
+            left: 80, 
+            right: 80, 
             bottom: 10 + bottomPadding, 
             top: 8
           ),
