@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:lottie/lottie.dart'; 
 
 import '../../core/app_export.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import '../../widgets/custom_icon_widget.dart';
 import './widgets/about_section_widget.dart';
-import './widgets/data_export_widget.dart';
 import './widgets/help_support_section_widget.dart';
 import './widgets/profile_header_widget.dart';
 import './widgets/settings_list_item_widget.dart';
-import './widgets/theme_toggle_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -27,7 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _avatarUrl;
   bool _isDarkMode = false;
   bool _isExporting = false;
-  bool _isOffline = false;
+  final bool _isOffline = false;
   bool _isLoadingProfile = true;
 
   @override
@@ -43,7 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (user != null) {
         final data = await Supabase.instance.client
             .from('profiles')
-            .select('first_name, last_name, avatar_url') // Added avatar_url
+            .select('first_name, last_name, avatar_url') 
             .eq('id', user.id)
             .single();
 
@@ -52,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             String first = data['first_name'] ?? "";
             String last = data['last_name'] ?? "";
             _userName = "$first $last".trim();
-            _avatarUrl = data['avatar_url']; // Store the URL
+            _avatarUrl = data['avatar_url']; 
 
             if (_userName.isEmpty) _userName = "Farmer";
             _isLoadingProfile = false;
@@ -67,27 +66,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _handleImageUpload() async {
     final picker = ImagePicker();
-    // 1. Pick an image from gallery
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70, // Compress for faster upload
+      imageQuality: 70, 
     );
 
     if (image == null) return;
 
     setState(
       () => _isExporting = true,
-    ); // Reusing export bool as a general loader
+    ); 
 
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
-      // 2. Define storage path
       final fileName = 'avatar_${user.id}.jpg';
       final bytes = await image.readAsBytes();
 
-      // 3. Upload to Supabase Bucket (Ensure you have a bucket named 'avatars')
       await Supabase.instance.client.storage
           .from('avatars')
           .uploadBinary(
@@ -95,16 +91,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             bytes,
             fileOptions: const FileOptions(
               upsert: true,
-              contentType: 'image/jpeg', // Force the content type
+              contentType: 'image/jpeg', 
             ),
           );
 
-      // 4. Get Public URL
       final String publicUrl = Supabase.instance.client.storage
           .from('avatars')
           .getPublicUrl(fileName);
 
-      // 5. Update Profile Table
       await Supabase.instance.client
           .from('profiles')
           .update({'avatar_url': publicUrl})
@@ -127,7 +121,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    // Optional: Logic to split name back into first/last for the DB
     List<String> parts = newName.split(' ');
     String firstName = parts[0];
     String lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
@@ -148,9 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadUserPreferences() async {
-    // Simulate loading user preferences
     await Future.delayed(const Duration(milliseconds: 500));
-    // In production, load from SharedPreferences or secure storage
   }
 
   void _handleThemeToggle(bool isDark) {
@@ -158,22 +149,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isDarkMode = isDark;
     });
     _showSnackBar(isDark ? 'Dark mode enabled' : 'Light mode enabled');
-    // In production, update theme provider and save preference
   }
 
   void _handleAccountSettings() {
     _showSnackBar('Account Settings - Coming soon');
-    // Navigate to account settings screen
   }
 
   void _handleSensorManagement() {
     _showSnackBar('Sensor Management - Coming soon');
-    // Navigate to sensor management screen
   }
 
   void _handleNotifications() {
     _showSnackBar('Notifications - Coming soon');
-    // Navigate to notifications settings screen
   }
 
   void _handleAppPreferences() {
@@ -182,12 +169,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _handleFAQ() {
     _showSnackBar('FAQ - Coming soon');
-    // Navigate to FAQ screen or show FAQ dialog
   }
 
   void _handleContactSupport() {
     _showSnackBar('Contact Support - Coming soon');
-    // Open contact support dialog or navigate to support screen
   }
 
   void _handleAbout() {
@@ -199,7 +184,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isExporting = true;
     });
 
-    // Simulate data export process
     await Future.delayed(const Duration(seconds: 2));
 
     setState(() {
@@ -207,7 +191,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     _showSnackBar('Data exported successfully');
-    // In production, generate and download actual export file
   }
 
   void _handleLogout() {
@@ -239,7 +222,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _performLogout() async {
-    // UPDATED: Properly sign out from Supabase
     await Supabase.instance.client.auth.signOut();
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(
@@ -346,143 +328,133 @@ class _ProfileScreenState extends State<ProfileScreen> {
         showSyncStatus: true,
         syncStatus: _isOffline ? null : true,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Profile header with avatar and editable name
-              ProfileHeaderWidget(
-                userName: _userName,
-                avatarUrl: _avatarUrl,
-                onNameChanged: _handleNameChange,
-                onImageTap: _handleImageUpload,
-              ),
-
-              SizedBox(height: 2.h),
-
-              // Settings options list
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4.w),
-                child: Text(
-                  'Settings',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+      body: Stack(
+        children: [
+          // Lottie Background Layer
+          Positioned.fill(
+            child: Lottie.asset(
+              'assets/newwwww.json', 
+              fit: BoxFit.cover, 
+            ),
+          ),
+          
+          // Foreground Content Layer
+          SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Profile header with avatar and editable name
+                  ProfileHeaderWidget(
+                    userName: _userName,
+                    avatarUrl: _avatarUrl,
+                    onNameChanged: _handleNameChange,
+                    onImageTap: _handleImageUpload,
                   ),
-                ),
-              ),
-              SizedBox(height: 1.h),
 
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 4.w),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                    width: 1,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    SettingsListItemWidget(
-                      title: 'Account Settings',
-                      iconName: 'person',
-                      onTap: _handleAccountSettings,
-                    ),
-                    SettingsListItemWidget(
-                      title: 'Sensor Management',
-                      iconName: 'sensors',
-                      onTap: _handleSensorManagement,
-                    ),
-                    SettingsListItemWidget(
-                      title: 'Notifications',
-                      iconName: 'notifications',
-                      onTap: _handleNotifications,
-                    ),
-                    SettingsListItemWidget(
-                      title: 'App Preferences',
-                      iconName: 'settings',
-                      onTap: _handleAppPreferences,
-                      showDivider: false,
-                    ),
-                  ],
-                ),
-              ),
+                  SizedBox(height: 2.h),
 
-              SizedBox(height: 2.h),
-
-              // Theme toggle
-              ThemeToggleWidget(
-                isDarkMode: _isDarkMode,
-                onToggle: _handleThemeToggle,
-              ),
-
-              SizedBox(height: 2.h),
-
-              // Data export
-              DataExportWidget(
-                onExportTap: _handleDataExport,
-                isExporting: _isExporting,
-              ),
-
-              SizedBox(height: 2.h),
-
-              // Help & Support section
-              HelpSupportSectionWidget(
-                onFAQTap: _handleFAQ,
-                onContactTap: _handleContactSupport,
-              ),
-
-              SizedBox(height: 2.h),
-
-              // About section
-              AboutSectionWidget(appVersion: '1.0.0', onTap: _handleAbout),
-
-              SizedBox(height: 3.h),
-
-              // Logout button
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4.w),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _handleLogout,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.error,
-                      foregroundColor: theme.colorScheme.onError,
-                      padding: EdgeInsets.symmetric(vertical: 2.h),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  // Settings options list
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4.w),
+                    child: Text(
+                      'Settings',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        // 1. Changed to Bright White!
+                        color: Colors.white, 
                       ),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CustomIconWidget(
-                          iconName: 'logout',
-                          size: 5.w,
-                          color: theme.colorScheme.onError,
-                        ),
-                        SizedBox(width: 2.w),
-                        Text(
-                          'Logout',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.onError,
+                  ),
+                  SizedBox(height: 1.h),
+
+                  // 2. Removed the background Container wrapper entirely!
+                  Column(
+                    children: [
+                      SettingsListItemWidget(
+                        title: 'Account Settings',
+                        iconName: 'person',
+                        onTap: _handleAccountSettings,
+                      ),
+                      SettingsListItemWidget(
+                        title: 'Sensor Management',
+                        iconName: 'sensors',
+                        onTap: _handleSensorManagement,
+                      ),
+                      SettingsListItemWidget(
+                        title: 'Notifications',
+                        iconName: 'notifications',
+                        onTap: _handleNotifications,
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 2.h),
+
+                 
+
+                  SizedBox(height: 2.h),
+
+                
+
+                  SizedBox(height: 2.h),
+
+                  // Help & Support section
+                  HelpSupportSectionWidget(
+                    onFAQTap: _handleFAQ,
+                    onContactTap: _handleContactSupport,
+                  ),
+
+                  SizedBox(height: 2.h),
+
+                  // About section
+                  AboutSectionWidget(appVersion: '1.0.0', onTap: _handleAbout),
+
+                  SizedBox(height: 3.h),
+
+                  // Logout button
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4.w),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _handleLogout,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.error,
+                          foregroundColor: theme.colorScheme.onError,
+                          padding: EdgeInsets.symmetric(vertical: 2.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                      ],
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CustomIconWidget(
+                              iconName: 'logout',
+                              size: 5.w,
+                              color: theme.colorScheme.onError,
+                            ),
+                            SizedBox(width: 2.w),
+                            Text(
+                              'Logout',
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.onError,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
 
-              SizedBox(height: 3.h),
-            ],
+                  SizedBox(height: 3.h),
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
       bottomNavigationBar: CustomBottomBar(
         currentRoute: '/profile-screen',

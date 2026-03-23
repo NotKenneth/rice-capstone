@@ -24,12 +24,12 @@ void main() async {
 
   await _setupNotifications();
 
-  bool _hasShownError = false;
+  bool hasShownError = false;
 
   ErrorWidget.builder = (FlutterErrorDetails details) {
-    if (!_hasShownError) {
-      _hasShownError = true;
-      Future.delayed(Duration(seconds: 5), () => _hasShownError = false);
+    if (!hasShownError) {
+      hasShownError = true;
+      Future.delayed(Duration(seconds: 5), () => hasShownError = false);
       return CustomErrorWidget(errorDetails: details);
     }
     return SizedBox.shrink();
@@ -182,6 +182,8 @@ void onStart(ServiceInstance service) async {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Sizer(
