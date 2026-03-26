@@ -1,4 +1,4 @@
-import 'dart:ui'; // Required for ImageFilter
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../../widgets/custom_icon_widget.dart';
@@ -21,28 +21,29 @@ class RiceVarietySelectorWidget extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16.0),
-      // We apply the ClipRRect to keep the blur constrained to the rounded borders
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16.0),
+        // Larger border radius to match the login card style
+        borderRadius: BorderRadius.circular(24.0),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
+          // Significantly higher blur for that smooth, deep frosted look
+          filter: ImageFilter.blur(sigmaX: 24.0, sigmaY: 24.0),
           child: Container(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             decoration: BoxDecoration(
-              // Translucent gradient for the frosted glass look
+              // Dark, neutral gradient overlay to let the bright background pop while keeping text readable
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  theme.colorScheme.surface.withValues(alpha: 0.4),
-                  theme.colorScheme.surface.withValues(alpha: 0.1),
+                  Colors.black.withValues(alpha: 0.45),
+                  Colors.black.withValues(alpha: 0.25),
                 ],
               ),
-              borderRadius: BorderRadius.circular(16.0),
-              // Subtle border to simulate the edge of the glass
+              borderRadius: BorderRadius.circular(24.0),
+              // Very faint white edge highlight
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2),
-                width: 1.5,
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 1.0,
               ),
             ),
             child: Column(
@@ -50,9 +51,9 @@ class RiceVarietySelectorWidget extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    CustomIconWidget(
+                    const CustomIconWidget(
                       iconName: 'grass',
-                      color: theme.colorScheme.primary,
+                      color: Colors.white, // Changed to white for high contrast
                       size: 24,
                     ),
                     const SizedBox(width: 12),
@@ -60,13 +61,14 @@ class RiceVarietySelectorWidget extends StatelessWidget {
                       'Rice Variety',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        // Ensure text is readable on translucent background
-                        color: theme.colorScheme.onSurface, 
+                        color: Colors.white, // Forced white for high contrast
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+                
+                // Dropdown Container - styled like the login input fields
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -74,12 +76,12 @@ class RiceVarietySelectorWidget extends StatelessWidget {
                     vertical: 4.0,
                   ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8.0),
-                    // Made the inner border slightly transparent to blend with the glass
+                    // Dark inner background to mimic the email/password fields
+                    color: Colors.black.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(12.0),
                     border: Border.all(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.5), 
-                      width: 1.5,
+                      color: Colors.white.withValues(alpha: 0.05),
+                      width: 1.0,
                     ),
                   ),
                   child: DropdownButtonHideUnderline(
@@ -87,20 +89,24 @@ class RiceVarietySelectorWidget extends StatelessWidget {
                       value: selectedVariety.isEmpty ? null : selectedVariety,
                       hint: Text(
                         "Select Variety", 
-                        style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       isExpanded: true,
-                      icon: CustomIconWidget(
-                        iconName: 'arrow_drop_down',
-                        color: theme.colorScheme.primary,
+                      icon: const CustomIconWidget(
+                        iconName: 'keyboard_arrow_down',
+                        color: Colors.white60,
                         size: 24,
                       ),
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.onSurface,
+                        color: Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
-                      // Dropdown menu background 
-                      dropdownColor: theme.colorScheme.surface,
+                      // Solid dark background for the opened dropdown menu
+                      dropdownColor: const Color(0xFF2A2A2A),
+                      borderRadius: BorderRadius.circular(12.0),
                       items: varieties.map((String variety) {
                         return DropdownMenuItem<String>(
                           value: variety,
@@ -117,7 +123,7 @@ class RiceVarietySelectorWidget extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                Text(variety),
+                                Text(variety, style: const TextStyle(color: Colors.white)),
                               ],
                             ),
                           ),
@@ -127,12 +133,12 @@ class RiceVarietySelectorWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
                   'Select rice variety to filter sensors',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],

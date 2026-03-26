@@ -1,3 +1,4 @@
+import 'dart:ui'; // Required for glass blur
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,7 +7,6 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'dart:typed_data';
 import 'package:lottie/lottie.dart'; 
 
-import '../../core/app_export.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import './widgets/greeting_header_widget.dart';
@@ -328,6 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       if (updated && mounted) setState(() {});
+    }
     });
   }
 
@@ -358,9 +359,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _showNotifications() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent, // Important for glassmorphism
+      isScrollControlled: true,
       builder: (context) => _NotificationListSheet(
         notifications: _notifications,
         onClear: () {
@@ -395,11 +395,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: Stack(
         children: [
-          // ---> NEW BACKGROUND ADDED HERE <---
           Positioned.fill(
             child: Lottie.asset(
-              'assets/newwwww.json', // PUT YOUR LOTTIE FILE PATH HERE
-              fit: BoxFit.cover, // Ensures it covers the entire background
+              'assets/newwwww.json', 
+              fit: BoxFit.cover, 
             ),
           ),
           // -----------------------------------
@@ -408,40 +407,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
             stream: _sensorStream,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
+                // Glassmorphism on the error state
                 return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.cloud_off_rounded,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "Connection Timeout",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-                        child: Text(
-                          "The server connection timed out. Please check your internet or retry.",
-                          textAlign: TextAlign.center,
+                  child: Container(
+                    margin: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          padding: const EdgeInsets.all(32),
+                          color: Colors.white.withValues(alpha: 0.1),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.cloud_off_rounded,
+                                size: 64,
+                                color: Colors.white.withValues(alpha: 0.8),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                "Connection Timeout",
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: Text(
+                                  "The server connection timed out. Please check your internet or retry.",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  setState(() {});
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                ),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text("RETRY CONNECTION"),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          setState(() {});
-                        },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text("RETRY CONNECTION"),
-                      ),
-                    ],
+                    ),
                   ),
                 );
               }
               if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: CircularProgressIndicator(color: Colors.white));
               }
 
               final allSensors = snapshot.data!;
@@ -519,40 +544,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 32.0,
-                        vertical: 12.0,
+                        horizontal: 16.0,
+                        vertical: 16.0,
                       ),
-                      child: TextField(
-                        controller: _weightController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12), // Slightly tighter radius like your images
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25), // Stronger shadow for depth against dark bg
+                              blurRadius: 12,
+                              spreadRadius: 0,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        decoration: InputDecoration(
-                          labelText: "Total Grain Weight (kg)",
-                          labelStyle: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                          hintText: "Enter weight...",
-                          prefixIcon: Icon(
-                            Icons.scale_rounded,
-                            color: theme.colorScheme.primary,
-                          ),
-                          filled: true,
-                          fillColor: theme.colorScheme.surface,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: theme.colorScheme.outline,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), // Smooth, moderate blur
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                // Very subtle gradient for that dark glass sheen
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.08), // Faint highlight top-left
+                                    Colors.white.withValues(alpha: 0.02), // Almost transparent bottom-right
+                                  ],
+                                ),
+                                // Thin, delicate border matching your reference
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                  width: 1.0, 
+                                ),
+                              ),
+                              child: TextField(
+                                controller: _weightController,
+                                keyboardType: const TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                                decoration: InputDecoration(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 18, 
+                                    horizontal: 16,
+                                  ),
+                                  labelText: "Total Grain Weight (kg)",
+                                  labelStyle: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white, // Solid white like your image
+                                  ),
+                                  hintText: "Enter weight...",
+                                  hintStyle: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.3), // Darker hint text
+                                  ),
+                                  prefixIcon: Padding(
+                                    padding: const EdgeInsets.only(left: 12.0, right: 8.0),
+                                    child: Icon(
+                                      Icons.scale_rounded, // Assuming you have a scale icon, or use your custom icon here
+                                      color: Colors.white, 
+                                    ),
+                                  ),
+                                  filled: false,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _enteredWeight = double.tryParse(value);
+                                  });
+                                },
+                              ),
                             ),
                           ),
                         ),
-                        onChanged: (value) {
-                          setState(() {
-                            _enteredWeight = double.tryParse(value);
-                          });
-                        },
                       ),
                     ),
                   ),
@@ -614,6 +687,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             "Heater Monitoring",
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
+                              color: Colors.white, // Ensure it's white over Lottie
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -639,59 +713,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // Updated Heater Card to Glassmorphism
   Widget _buildHeaterCard(double temp) {
     bool isHot = temp > 45.0;
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isHot
-              ? [Colors.orange[900]!, Colors.red[700]!]
-              : [Colors.blueGrey[900]!, Colors.blueGrey[700]!],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          // Subtle red border if hot, white if normal
+          color: isHot 
+              ? Colors.redAccent.withValues(alpha: 0.5) 
+              : Colors.white.withValues(alpha: 0.2),
+          width: 1,
         ),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isHot ? Icons.whatshot : Icons.thermostat,
-                color: Colors.white,
-                size: 36,
-              ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "SYSTEM TEMPERATURE",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    "${temp.toStringAsFixed(1)}°C",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            spreadRadius: 1,
           ),
-          if (isHot)
-            const Icon(
-              Icons.warning_amber_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              // Translucent gradient
+              gradient: LinearGradient(
+                colors: isHot
+                    ? [
+                        Colors.orange[900]!.withValues(alpha: 0.3),
+                        Colors.red[700]!.withValues(alpha: 0.3)
+                      ]
+                    : [
+                        Colors.white.withValues(alpha: 0.15),
+                        Colors.white.withValues(alpha: 0.05)
+                      ],
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isHot ? Icons.whatshot : Icons.thermostat,
+                      color: Colors.white,
+                      size: 36,
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "SYSTEM TEMPERATURE",
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          "${temp.toStringAsFixed(1)}°C",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                if (isHot)
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -710,13 +816,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'Active Sensors',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
+              color: Colors.white, // Ensure it pops over Lottie background
             ),
           ),
           _isBulkUpdating
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : TextButton.icon(
                   onPressed: () =>
@@ -729,9 +839,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   label: Text(anyActive ? "STOP" : "START"),
                   style: TextButton.styleFrom(
-                    foregroundColor: anyActive
-                        ? Colors.red[700]
-                        : Colors.green[700],
+                    foregroundColor: Colors.white,
+                    backgroundColor: anyActive
+                        ? Colors.red[700]?.withValues(alpha: 0.8)
+                        : Colors.green[700]?.withValues(alpha: 0.8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.3),
+                      )
+                    )
                   ),
                 ),
         ],
@@ -740,6 +858,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+// Glassmorphism Notification Sheet
 class _NotificationListSheet extends StatelessWidget {
   final List<Map<String, dynamic>> notifications;
   final VoidCallback onClear;
@@ -750,104 +869,126 @@ class _NotificationListSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-      height: 450,
-      child: Column(
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(10),
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          height: 450,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.4), // Dark translucent overlay
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.2), width: 1),
             ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
             children: [
-              const Text(
-                "System Alerts",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              if (notifications.isNotEmpty)
-                TextButton.icon(
-                  onPressed: onClear,
-                  icon: const Icon(Icons.clear_all),
-                  label: const Text("Clear All"),
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "System Alerts",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  if (notifications.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: onClear,
+                      icon: Icon(Icons.clear_all, color: Colors.white.withValues(alpha: 0.8)),
+                      label: Text(
+                        "Clear All",
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                      ),
+                    ),
+                ],
+              ),
+              Divider(color: Colors.white.withValues(alpha: 0.2)),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: notifications.length,
+                  itemBuilder: (context, index) {
+                    final n = notifications[index];
+                    final String status = n['status'] ?? '';
+
+                    Color alertColor;
+                    IconData icon;
+
+                    switch (status) {
+                      case 'ready':
+                        alertColor = Colors.greenAccent;
+                        icon = Icons.check_circle;
+                        break;
+                      case 'target':
+                        alertColor = Colors.orangeAccent;
+                        icon = Icons.stars;
+                        break;
+                      case 'approach':
+                        alertColor = Colors.yellowAccent;
+                        icon = Icons.access_time_filled;
+                        break;
+                      case 'critical':
+                        alertColor = Colors.redAccent;
+                        icon = Icons.gpp_maybe;
+                        break;
+                      default:
+                        alertColor = Colors.blueGrey;
+                        icon = Icons.notifications;
+                    }
+
+                    return Card(
+                      elevation: 0,
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: alertColor.withValues(alpha: 0.5), width: 1),
+                      ),
+                      color: alertColor.withValues(alpha: 0.1), // Translucent colored card
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: alertColor.withValues(alpha: 0.2),
+                          child: Icon(icon, color: alertColor, size: 20),
+                        ),
+                        title: Text(
+                          n['sensorId'],
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              n['message'],
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                            ),
+                            Text(
+                              DateFormat('jm').format(n['time']),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
-          const Divider(),
-          Expanded(
-            child: ListView.builder(
-              itemCount: notifications.length,
-              itemBuilder: (context, index) {
-                final n = notifications[index];
-                final String status = n['status'] ?? '';
-
-                Color alertColor;
-                IconData icon;
-
-                switch (status) {
-                  case 'ready':
-                    alertColor = Colors.green;
-                    icon = Icons.check_circle;
-                    break;
-                  case 'target':
-                    alertColor = Colors.orange;
-                    icon = Icons.stars;
-                    break;
-                  case 'approach':
-                    alertColor = Colors.yellow[700]!;
-                    icon = Icons.access_time_filled;
-                    break;
-                  case 'critical':
-                    alertColor = Colors.red;
-                    icon = Icons.gpp_maybe;
-                    break;
-                  default:
-                    alertColor = Colors.blueGrey;
-                    icon = Icons.notifications;
-                }
-
-                return Card(
-                  elevation: 0,
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: alertColor, width: 2),
-                  ),
-                  color: alertColor.withOpacity(0.08),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: alertColor,
-                      child: Icon(icon, color: Colors.white, size: 20),
-                    ),
-                    title: Text(
-                      n['sensorId'],
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          n['message'],
-                          style: TextStyle(color: Colors.grey[800]),
-                        ),
-                        Text(
-                          DateFormat('jm').format(n['time']),
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

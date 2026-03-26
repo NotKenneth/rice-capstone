@@ -44,7 +44,7 @@ class GreetingHeaderWidget extends StatelessWidget {
                       Text(
                         greeting,
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white70, // Change this to whatever color you want
+                          color: Colors.white,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -53,7 +53,7 @@ class GreetingHeaderWidget extends StatelessWidget {
                         userName,
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: Colors.white70,
+                          color: Colors.white,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -67,7 +67,7 @@ class GreetingHeaderWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 12.0,
-                vertical: 8.0,
+                vertical: 15.0,
               ),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface.withValues(alpha: 0.8),

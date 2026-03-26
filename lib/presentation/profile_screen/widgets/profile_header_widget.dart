@@ -63,16 +63,8 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.h),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      // Set to transparent so the Lottie background shows through
+      color: Colors.transparent, 
       child: Column(
         children: [
           // Avatar with Upload Trigger
@@ -111,7 +103,7 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
                     child: Icon(
                       Icons.camera_alt,
                       size: 4.w,
-                      color: theme.colorScheme.onPrimary,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -130,7 +122,10 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
                       child: TextField(
                         controller: _nameController,
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.titleLarge,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          // Bright white text while typing
+                          color: Colors.white70, 
+                        ),
                         autofocus: true,
                         decoration: InputDecoration(
                           contentPadding: EdgeInsets.symmetric(
@@ -148,7 +143,8 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
                       icon: CustomIconWidget(
                         iconName: 'check',
                         size: 6.w,
-                        color: theme.colorScheme.primary,
+                        // Green accent color for the save checkmark
+                        color: Colors.greenAccent, 
                       ),
                       onPressed: _toggleEdit,
                     ),
@@ -163,13 +159,17 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
                         widget.userName,
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
+                          // Bright white text for the saved username
+                          color: Colors.white70, 
                         ),
                       ),
                       SizedBox(width: 2.w),
                       CustomIconWidget(
                         iconName: 'edit',
                         size: 5.w,
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        // Slightly faded white for the edit pencil
+                        color: Colors.white70, 
+                        
                       ),
                     ],
                   ),
@@ -178,7 +178,8 @@ class _ProfileHeaderWidgetState extends State<ProfileHeaderWidget> {
           Text(
             'Tap photo to change • Long press name to edit',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              // Slightly faded white for the instructions subtitle
+              color: Colors.white70, 
             ),
           ),
         ],
