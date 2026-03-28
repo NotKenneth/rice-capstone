@@ -402,7 +402,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Positioned.fill(
             child: Lottie.asset(
-              'assets/App Background.json', 
+              'assets/Background_shooting_star.json', 
               fit: BoxFit.cover, 
             ),
           ),

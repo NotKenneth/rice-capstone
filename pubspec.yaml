@@ -46,6 +46,7 @@ flutter:
     - assets/loginbackground.png
     - assets/App Background.json
     - assets/official_logo.png
+    - assets/Background_shooting_star.json
    
 
   # CRITICAL ASSET MANAGEMENT RULES:
