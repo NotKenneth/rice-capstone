@@ -172,43 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildEnvironmentalData() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        _buildGlassChip(Icons.thermostat, '32°C'),
-        SizedBox(width: 2.w),
-        _buildGlassChip(Icons.water_drop_outlined, '14% MC'),
-      ],
-    );
-  }
-
-  Widget _buildGlassChip(IconData icon, String label) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: Colors.white, size: 16),
-              SizedBox(width: 1.w),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  // Applied Inter
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      
     );
   }
 
@@ -222,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // Applied Montserrat
             color: Colors.white,
             fontWeight: FontWeight.w800,
-            fontSize: 36,
+            fontSize: 30,
             letterSpacing:
                 -0.5, // Slightly tighter tracking for headings looks premium
           ),
@@ -264,7 +228,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Applied Montserrat
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 20,
                   ),
                 ),
                 SizedBox(height: 1.h),
@@ -359,7 +323,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 3.h),
 
                 SizedBox(
-                  height: 6.h,
+                  height: 7.h,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(

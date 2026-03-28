@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 enum CustomAppBarVariant { standard, withBackButton, withSearch, transparent }
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String title;
+  // Changed from String to dynamic so it can accept a String OR a Widget (like an Image)
+  final dynamic title; 
   final CustomAppBarVariant variant;
   final String? subtitle;
   final Widget? leading;
@@ -18,8 +19,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showNotifications;
   final int unreadNotificationCount;
   final VoidCallback? onNotificationTap;
-  
-  // 1. ADDED: Property to control the back button
   final bool automaticallyImplyLeading; 
 
   const CustomAppBar({
@@ -38,7 +37,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.unreadNotificationCount = 0,
     this.onNotificationTap,
     this.showNotifications = false,
-    // 2. ADDED: Default is true so it doesn't break other screens
     this.automaticallyImplyLeading = true, 
   });
 
@@ -54,10 +52,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: _buildLeading(context),
       actions: _buildActions(context),
       centerTitle: centerTitle,
-      
-      // 3. ADDED: Passes the command to the underlying AppBar
       automaticallyImplyLeading: automaticallyImplyLeading, 
-      
       backgroundColor: backgroundColor ??
           (variant == CustomAppBarVariant.transparent
               ? Colors.transparent
@@ -70,6 +65,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildTitle(BuildContext context) {
     final theme = Theme.of(context);
+    
+    // Checks if the title is already a Widget (like an Image). If not, formats it as Text.
+    Widget mainTitle = title is Widget 
+        ? title 
+        : Text(
+            title.toString(),
+            style: theme.textTheme.titleLarge,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
+
     if (subtitle != null) {
       return Column(
         crossAxisAlignment: centerTitle
@@ -77,12 +83,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            title,
-            style: theme.textTheme.titleLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          mainTitle,
           const SizedBox(height: 2),
           Text(
             subtitle!,
@@ -95,12 +96,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       );
     }
-    return Text(
-      title,
-      style: theme.textTheme.titleLarge,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
+    return mainTitle;
   }
 
   Widget? _buildLeading(BuildContext context) {
@@ -128,7 +124,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       );
     }
 
-    // Notification Bell with Badge
     if (showNotifications) {
       actionWidgets.add(
         _NotificationBell(
@@ -155,7 +150,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
 /// Sliver variant for use in CustomScrollView
 class CustomSliverAppBar extends StatelessWidget {
-  final String title;
+  // Changed from String to dynamic here as well
+  final dynamic title;
   final String? subtitle;
   final Widget? leading;
   final List<Widget>? actions;
@@ -168,8 +164,6 @@ class CustomSliverAppBar extends StatelessWidget {
   final Widget? flexibleSpace;
   final int unreadNotificationCount;
   final VoidCallback? onNotificationTap;
-  
-  // ADDED: Added here too, just in case you need it later!
   final bool automaticallyImplyLeading; 
 
   const CustomSliverAppBar({
@@ -187,7 +181,7 @@ class CustomSliverAppBar extends StatelessWidget {
     this.flexibleSpace,
     this.unreadNotificationCount = 0,
     this.onNotificationTap,
-    this.automaticallyImplyLeading = true, // Default true
+    this.automaticallyImplyLeading = true, 
   });
 
   @override
@@ -199,10 +193,7 @@ class CustomSliverAppBar extends StatelessWidget {
       title: _buildTitle(context),
       leading: leading,
       actions: _buildActions(context),
-      
-      // ADDED: Passes command to SliverAppBar
       automaticallyImplyLeading: automaticallyImplyLeading, 
-      
       backgroundColor: colorScheme.surface,
       foregroundColor: colorScheme.onSurface,
       elevation: 2.0,
@@ -217,17 +208,23 @@ class CustomSliverAppBar extends StatelessWidget {
 
   Widget _buildTitle(BuildContext context) {
     final theme = Theme.of(context);
+    
+    // Applying the same Widget/String check logic here
+    Widget mainTitle = title is Widget 
+        ? title 
+        : Text(
+            title.toString(),
+            style: theme.textTheme.titleLarge,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
+
     if (subtitle != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            title,
-            style: theme.textTheme.titleLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          mainTitle,
           const SizedBox(height: 2),
           Text(
             subtitle!,
@@ -240,12 +237,7 @@ class CustomSliverAppBar extends StatelessWidget {
         ],
       );
     }
-    return Text(
-      title,
-      style: theme.textTheme.titleLarge,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    );
+    return mainTitle;
   }
 
   List<Widget>? _buildActions(BuildContext context) {

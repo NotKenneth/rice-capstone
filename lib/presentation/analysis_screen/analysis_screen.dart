@@ -449,10 +449,14 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       backgroundColor: Colors.black.withOpacity(0.4),
       
       appBar: CustomAppBar(
-        title: 'Analysis',
+       title: Image.asset(
+          'assets/official_logo.png', // <-- Make sure to use your actual asset path
+          height: 50, // Adjust this height so it fits well inside the AppBar
+          fit: BoxFit.contain,
+        ),
         automaticallyImplyLeading: false,
         actions: [
-          IconButton(onPressed: _loadAllData, icon: const Icon(Icons.refresh, color: Colors.white)),
+          IconButton(onPressed: _loadAllData, icon: Icon(Icons.refresh, color: theme.colorScheme.primary.withOpacity(0.8))),
         ],
       ),
 
@@ -460,7 +464,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         children: [
           Positioned.fill(
             child: Lottie.asset(
-              'assets/newwwww.json', 
+              'assets/App Background.json', 
               fit: BoxFit.cover,
             ),
           ),

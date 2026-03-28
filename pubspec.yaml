@@ -44,7 +44,8 @@ flutter:
     - assets/power-button.png
     - assets/Gemini_Generated_Image_sr9q1dsr9q1dsr9q.png
     - assets/loginbackground.png
-    - assets/newwwww.json
+    - assets/App Background.json
+    - assets/official_logo.png
    
 
   # CRITICAL ASSET MANAGEMENT RULES:

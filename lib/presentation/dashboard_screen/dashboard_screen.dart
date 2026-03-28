@@ -283,7 +283,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           double t = (s['temperature'] as num? ?? 0).toDouble();
           String id = s['id']?.toString() ?? "Unknown";
 
-          if (m <= 12.4) {
+          if (m >= 10.3 && m <= 12.4) {
             readyCount++;
             if (_addToBell(
               id,
@@ -291,7 +291,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               "target",
             )) {
               updated = true;
-          } else if (m <= 13.5) {
+          } else if (m >= 12.5 &&m <= 14.3) {
             if (_addToBell(
               id,
               "Approaching target moisture: ${m.toStringAsFixed(1)}%",
@@ -383,7 +383,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold( 
       extendBody: true, 
       appBar: CustomAppBar(
-        title: 'DryCe Monitor',
+        // Replace the string with an Image.asset widget
+        title: Image.asset(
+          'assets/official_logo.png', // <-- Make sure to use your actual asset path
+          height: 50, // Adjust this height so it fits well inside the AppBar
+          fit: BoxFit.contain,
+        ),
         automaticallyImplyLeading: false,
         showNotifications: true,
         showSyncStatus: true,
@@ -397,7 +402,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Positioned.fill(
             child: Lottie.asset(
-              'assets/newwwww.json', 
+              'assets/App Background.json', 
               fit: BoxFit.cover, 
             ),
           ),

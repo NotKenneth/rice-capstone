@@ -54,6 +54,7 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
             'Real-time Sensor History',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 16),

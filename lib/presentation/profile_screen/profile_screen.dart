@@ -144,28 +144,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
-  void _handleThemeToggle(bool isDark) {
-    setState(() {
-      _isDarkMode = isDark;
-    });
-    _showSnackBar(isDark ? 'Dark mode enabled' : 'Light mode enabled');
-  }
-
-  void _handleAccountSettings() {
-    _showSnackBar('Account Settings - Coming soon');
-  }
-
-  void _handleSensorManagement() {
-    _showSnackBar('Sensor Management - Coming soon');
-  }
-
-  void _handleNotifications() {
-    _showSnackBar('Notifications - Coming soon');
-  }
-
-  void _handleAppPreferences() {
-    Navigator.pushNamed(context, '/settings-screen');
-  }
 
   void _handleFAQ() {
     _showSnackBar('FAQ - Coming soon');
@@ -322,7 +300,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'Profile',
+       title: Image.asset(
+          'assets/official_logo.png', // <-- Make sure to use your actual asset path
+          height: 50, // Adjust this height so it fits well inside the AppBar
+          fit: BoxFit.contain,
+        ),
         variant: CustomAppBarVariant.standard,
         showNotifications: false,
         showSyncStatus: true,
@@ -333,7 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Lottie Background Layer
           Positioned.fill(
             child: Lottie.asset(
-              'assets/newwwww.json', 
+              'assets/App Background.json', 
               fit: BoxFit.cover, 
             ),
           ),
@@ -354,49 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   SizedBox(height: 2.h),
 
-                  // Settings options list
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4.w),
-                    child: Text(
-                      'Settings',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        // 1. Changed to Bright White!
-                        color: Colors.white, 
-                      ),
-                    ),
-                  ),
                   SizedBox(height: 1.h),
-
-                  // 2. Removed the background Container wrapper entirely!
-                  Column(
-                    children: [
-                      SettingsListItemWidget(
-                        title: 'Account Settings',
-                        iconName: 'person',
-                        onTap: _handleAccountSettings,
-                      ),
-                      SettingsListItemWidget(
-                        title: 'Sensor Management',
-                        iconName: 'sensors',
-                        onTap: _handleSensorManagement,
-                      ),
-                      SettingsListItemWidget(
-                        title: 'Notifications',
-                        iconName: 'notifications',
-                        onTap: _handleNotifications,
-                      ),
-                    ],
-                  ),
-
-                  SizedBox(height: 2.h),
-
-                 
-
-                  SizedBox(height: 2.h),
-
-                
-
                   SizedBox(height: 2.h),
 
                   // Help & Support section

@@ -54,7 +54,7 @@ class _RiceVarietyFilterWidgetState extends State<RiceVarietyFilterWidget> {
           Text(
             'Rice Varieties',
             style: theme.textTheme.titleSmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 8),
