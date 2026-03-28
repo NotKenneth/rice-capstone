@@ -6,7 +6,7 @@ import 'package:dryce_monitoring_system/widgets/custom_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:lottie/lottie.dart'; 
+import 'package:lottie/lottie.dart';
 import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -79,13 +79,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   void _extractAvailableVarieties(List<Map<String, dynamic>> sessions) {
-    final Set<String> uniqueVarieties = {};
-    for (var session in sessions) {
-      final variety = session['variety'] ?? 'Unknown';
-      if (variety != 'Standard' && variety != 'Unknown') {
-        uniqueVarieties.add(variety);
-      }
-    }
+    // Get unique, trimmed variety names
+    final Set<String> uniqueNames = sessions
+        .map((s) => (s['variety']?.toString() ?? 'Unknown').trim())
+        .where((v) => v != 'Standard' && v != 'Unknown')
+        .toSet();
 
     final List<Color> palette = [
       Colors.blue,
@@ -93,14 +91,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       Colors.orange,
       Colors.purple,
       Colors.red,
-      Colors.teal,
     ];
     int colorIdx = 0;
 
-    _availableVarieties = uniqueVarieties.map((v) {
-      return {'name': v, 'color': palette[(colorIdx++) % palette.length]};
-    }).toList();
-    _selectedVarieties = uniqueVarieties.toList();
+    setState(() {
+      _availableVarieties = uniqueNames.map((v) {
+        return {'name': v, 'color': palette[(colorIdx++) % palette.length]};
+      }).toList();
+
+      // FORCE SELECTION: If we don't do this, RC 402 stays "unchecked"
+      // when you load the full range, making it invisible.
+      _selectedVarieties = uniqueNames.toList();
+    });
   }
 
   List<Map<String, dynamic>> _groupIntoSessions(
@@ -108,58 +110,67 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   ) {
     if (rawData.isEmpty) return [];
 
-    Map<String, List<Map<String, dynamic>>> logsByVariety = {};
-    for (var record in rawData) {
-      String variety = record['rice_variety'] ?? 'Unknown';
-      logsByVariety.putIfAbsent(variety, () => []);
-      logsByVariety[variety]!.add(record);
-    }
-
-    List<Map<String, dynamic>> finalSessions = [];
-    const sessionGap = Duration(minutes: 30);
-
-    logsByVariety.forEach((variety, varietyLogs) {
-      varietyLogs.sort(
-        (a, b) => DateTime.parse(
-          a['recorded_at'],
-        ).compareTo(DateTime.parse(b['recorded_at'])),
-      );
-
-      List<Map<String, dynamic>> currentBatch = [];
-
-      for (var record in varietyLogs) {
-        if (currentBatch.isEmpty) {
-          currentBatch.add(record);
-          continue;
-        }
-
-        DateTime lastTime = DateTime.parse(currentBatch.last['recorded_at']);
-        DateTime currentTime = DateTime.parse(record['recorded_at']);
-
-        if (currentTime.difference(lastTime) <= sessionGap) {
-          currentBatch.add(record);
-        } else {
-          final processed = _processSession(List.from(currentBatch));
-          if (processed['durationValue'] >= 0 &&
-              processed['chartData'].isNotEmpty) {
-            finalSessions.add(processed);
-          }
-          currentBatch = [record];
-        }
-      }
-
-      if (currentBatch.isNotEmpty) {
-        final processed = _processSession(List.from(currentBatch));
-        if (processed['durationValue'] >= 0 &&
-            processed['chartData'].isNotEmpty) {
-          finalSessions.add(processed);
-        }
-      }
+    // 1. Sort ALL data by time (Oldest to Newest)
+    rawData.sort((a, b) {
+      DateTime timeA = DateTime.parse(a['recorded_at']).toUtc();
+      DateTime timeB = DateTime.parse(b['recorded_at']).toUtc();
+      return timeA.compareTo(timeB);
     });
 
+    List<List<Map<String, dynamic>>> finalGroups = [];
+    // Use a Map to keep track of the "Active" session for each variety
+    Map<String, List<Map<String, dynamic>>> activeSessions = {};
+
+    const sessionGap = Duration(minutes: 60);
+
+    for (var record in rawData) {
+      String variety = (record['rice_variety']?.toString() ?? 'Unknown').trim();
+      if (variety == 'Standard') continue;
+
+      DateTime currentTime = DateTime.parse(record['recorded_at']).toUtc();
+
+      if (activeSessions.containsKey(variety)) {
+        List<Map<String, dynamic>> currentGroup = activeSessions[variety]!;
+        DateTime lastTime = DateTime.parse(
+          currentGroup.last['recorded_at'],
+        ).toUtc();
+
+        // Check if this record is close enough to the LAST record of this variety
+        if (currentTime.difference(lastTime).abs() <= sessionGap) {
+          currentGroup.add(record);
+        } else {
+          // GAP DETECTED: Save the old session and start a brand new one
+          finalGroups.add(List.from(currentGroup));
+          activeSessions[variety] = [record];
+        }
+      } else {
+        // FIRST time seeing this variety in the list
+        activeSessions[variety] = [record];
+      }
+    }
+
+    // Add all remaining active sessions to the final list
+    activeSessions.forEach((key, value) {
+      finalGroups.add(value);
+    });
+
+    // 2. Process groups into the UI format
+    List<Map<String, dynamic>> finalSessions = [];
+    for (var group in finalGroups) {
+      final processed = _processSession(group);
+      if (processed['chartData'].isNotEmpty) {
+        finalSessions.add(processed);
+      }
+    }
+
+    // 3. Sort Table: Newest Date at the Top
     finalSessions.sort((a, b) {
-      DateTime timeA = DateTime.parse(a['chartData'].first['recorded_at']);
-      DateTime timeB = DateTime.parse(b['chartData'].first['recorded_at']);
+      DateTime timeA = DateTime.parse(
+        a['chartData'].first['recorded_at'],
+      ).toUtc();
+      DateTime timeB = DateTime.parse(
+        b['chartData'].first['recorded_at'],
+      ).toUtc();
       return timeB.compareTo(timeA);
     });
 
@@ -167,108 +178,73 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   Map<String, dynamic> _processSession(List<Map<String, dynamic>> records) {
-    final hardwareRecords = records;
+    if (records.isEmpty) return {'durationValue': -1.0, 'chartData': []};
 
-    if (hardwareRecords.isEmpty) {
-      return {
-        'durationValue': 0.0,
-        'initialMoisture': "0.0",
-        'finalMoisture': "0.0",
-      };
+    // Ensure we are using the absolute first and absolute last after sorting
+    final DateTime startTime = DateTime.parse(records.first['recorded_at']);
+    final DateTime endTime = DateTime.parse(records.last['recorded_at']);
+
+    final duration = endTime.difference(startTime);
+
+    // Moisture Logic
+    double initialMC = (records.first['moisture_percentage'] as num).toDouble();
+    double finalMC = (records.last['moisture_percentage'] as num).toDouble();
+
+    // Weight Logic (Average of the session)
+    double totalWeight = 0.0;
+    int count = 0;
+    for (var r in records) {
+      if (r['weight'] != null) {
+        totalWeight += (r['weight'] as num).toDouble();
+        count++;
+      }
     }
-
-    final firstTime = DateTime.parse(hardwareRecords.first['recorded_at']);
-    final lastTime = DateTime.parse(hardwareRecords.last['recorded_at']);
-    final duration = lastTime.difference(firstTime);
-
-    final sensorIds = hardwareRecords.map((r) => r['sensor_id']).toSet();
-
-    List<double> initialReadings = [];
-    for (var id in sensorIds) {
-      final firstEntry = hardwareRecords.firstWhere(
-        (r) => r['sensor_id'] == id,
-      );
-      initialReadings.add(
-        (firstEntry['moisture_percentage'] as num).toDouble(),
-      );
-    }
-    double initialAvg = initialReadings.isEmpty
-        ? 0.0
-        : initialReadings.reduce((a, b) => a + b) / initialReadings.length;
-
-    List<double> finalReadings = [];
-    for (var id in sensorIds) {
-      final lastEntry = hardwareRecords.lastWhere((r) => r['sensor_id'] == id);
-      finalReadings.add((lastEntry['moisture_percentage'] as num).toDouble());
-    }
-    double finalAvg = finalReadings.isEmpty
-        ? 0.0
-        : finalReadings.reduce((a, b) => a + b) / finalReadings.length;
-        
-    for (var id in sensorIds) {
-      final firstEntry = records.firstWhere((r) => r['sensor_id'] == id);
-      double reading = (firstEntry['moisture_percentage'] as num).toDouble();
-      initialReadings.add(reading);
-    }
-
-    double totalWeight = hardwareRecords.fold(
-      0.0,
-      (sum, item) => sum + (item['weight'] as num? ?? 0.0).toDouble(),
-    );
-    double avgWeight = totalWeight / hardwareRecords.length;
+    double avgWeight = count > 0 ? totalWeight / count : 0.0;
 
     return {
-      'session_id': hardwareRecords.first['session_id'],
-      'variety': hardwareRecords.first['rice_variety'],
-      'date': "${firstTime.day}/${firstTime.month}/${firstTime.year}",
-      'duration': "${duration.inHours}h ${duration.inMinutes % 60}m",
+      'session_id': records.first['session_id'] ?? 'MANUAL',
+      'variety': records.first['rice_variety'] ?? 'Unknown',
+      'date': DateFormat('MM/dd/yy').format(startTime),
+      'duration': duration.inMinutes == 0
+          ? "Single Point"
+          : "${duration.inHours}h ${duration.inMinutes % 60}m",
       'durationValue': duration.inMinutes.toDouble(),
-      'initialMoisture': initialAvg.toStringAsFixed(1),
-      'finalMoisture': finalAvg.toStringAsFixed(1),
-      'weight': avgWeight > 0 ? avgWeight.toStringAsFixed(1) : "0.0",
-      'weightValue': avgWeight,
-      'chartData': hardwareRecords,
+      'initialMoisture': initialMC.toStringAsFixed(1),
+      'finalMoisture': finalMC.toStringAsFixed(1),
+      'weight': avgWeight.toStringAsFixed(1),
+      'chartData': records,
     };
   }
 
   Future<List<Map<String, dynamic>>> _fetchAllSensorsHistory() async {
     try {
-      final start = DateTime(
-        _selectedRange.start.year,
-        _selectedRange.start.month,
-        _selectedRange.start.day,
-        0,
-        0,
-        0,
-      ).toUtc();
-
-      final end = DateTime(
-        _selectedRange.end.year,
-        _selectedRange.end.month,
-        _selectedRange.end.day,
-        23,
-        59,
-        59,
-      ).toUtc();
+      // Format local time strings: 2026-03-28 00:00:00 to 2026-03-28 23:59:59
+      final String start = DateFormat(
+        'yyyy-MM-dd 00:00:00',
+      ).format(_selectedRange.start);
+      final String end = DateFormat(
+        'yyyy-MM-dd 23:59:59',
+      ).format(_selectedRange.end);
 
       final response = await Supabase.instance.client
           .from('sensor_history')
-          .select(
-            'moisture_percentage, recorded_at, rice_variety, weight, sensor_id, session_id',
-          )
-          .not('recorded_at', 'is', null)
+          .select()
           .neq('rice_variety', 'Standard')
-          .gte('recorded_at', start.toIso8601String())
-          .lte('recorded_at', end.toIso8601String())
-          .order('recorded_at', ascending: true)
-          .order('rice_variety', ascending: true);
+          .gte('recorded_at', start)
+          .lte('recorded_at', end)
+          .order('recorded_at', ascending: true);
 
       final List rawData = response as List;
-      if (rawData.isEmpty) return [];
+
+      // DEBUG: Check this in your console!
+      // If this says 0, the issue is the query. If it says 10+, the issue is the Filter/UI.
+      debugPrint(
+        "DEBUG: Found ${rawData.length} records for range $start to $end",
+      );
 
       return _groupIntoSessions(List<Map<String, dynamic>>.from(rawData));
     } catch (e) {
-      debugPrint("🔍 RAW SUPABASE FETCH ERROR: $e");
+      debugPrint("🔍 FETCH ERROR: $e");
       return [];
     }
   }
@@ -432,7 +408,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             ),
           );
         }
-      } 
+      }
     } catch (e) {
       debugPrint("Database Delete Error: $e");
     } finally {
@@ -447,16 +423,22 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     return Scaffold(
       // Lowered opacity so the Lottie background is actually visible!
       backgroundColor: Colors.black.withOpacity(0.4),
-      
+
       appBar: CustomAppBar(
-       title: Image.asset(
+        title: Image.asset(
           'assets/official_logo.png', // <-- Make sure to use your actual asset path
           height: 50, // Adjust this height so it fits well inside the AppBar
           fit: BoxFit.contain,
         ),
         automaticallyImplyLeading: false,
         actions: [
-          IconButton(onPressed: _loadAllData, icon: Icon(Icons.refresh, color: theme.colorScheme.primary.withOpacity(0.8))),
+          IconButton(
+            onPressed: _loadAllData,
+            icon: Icon(
+              Icons.refresh,
+              color: theme.colorScheme.primary.withOpacity(0.8),
+            ),
+          ),
         ],
       ),
 
@@ -464,16 +446,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         children: [
           Positioned.fill(
             child: Lottie.asset(
-              'assets/Background_shooting_star.json', 
+              'assets/Background_shooting_star.json',
               fit: BoxFit.cover,
             ),
           ),
-          
+
           Column(
             children: [
               Expanded(
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
                     : CustomScrollView(
                         slivers: [
                           SliverToBoxAdapter(
@@ -523,7 +507,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                     } else {
                                       final fullMap = _sensorHistoricalData
                                           .firstWhere(
-                                            (s) => s['session_id'] == sessionData,
+                                            (s) =>
+                                                s['session_id'] == sessionData,
                                             orElse: () => <String, dynamic>{},
                                           );
                                       if (fullMap.isNotEmpty) {
@@ -537,19 +522,25 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             // --- UPDATED FOR VISIBILITY ---
                             SliverToBoxAdapter(
                               child: Padding(
-                                padding: const EdgeInsets.fromLTRB(16, 32, 16, 8),
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  32,
+                                  16,
+                                  8,
+                                ),
                                 child: Text(
                                   _isSingleDaySelected
                                       ? (DateUtils.isSameDay(
-                                            _selectedRange.start,
-                                            DateTime.now(),
-                                          )
-                                          ? "Today's Drying Sessions"
-                                          : "Drying Sessions: ${DateFormat('MMM dd, yyyy').format(_selectedRange.start)}")
+                                              _selectedRange.start,
+                                              DateTime.now(),
+                                            )
+                                            ? "Today's Drying Sessions"
+                                            : "Drying Sessions: ${DateFormat('MMM dd, yyyy').format(_selectedRange.start)}")
                                       : "Batch Analysis Summary",
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.white, // Forces text to be white
+                                    color:
+                                        Colors.white, // Forces text to be white
                                     letterSpacing: 1.1,
                                   ),
                                 ),
@@ -560,7 +551,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               child: _buildAnalysisTable(_filteredData),
                             ),
 
-                            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 24),
+                            ),
                           ],
                         ],
                       ),
@@ -569,7 +562,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               if (_filteredData.isNotEmpty && !_isLoading)
                 Container(
                   padding: const EdgeInsets.all(16.0),
-                  // Glassmorphic footer for the button             
+                  // Glassmorphic footer for the button
                   child: SizedBox(
                     width: 300,
                     height: 54,
@@ -584,12 +577,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary.withOpacity(0.8), // Slight transparency to match
+                        backgroundColor: theme.colorScheme.primary.withOpacity(
+                          0.8,
+                        ), // Slight transparency to match
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                          side: BorderSide(
+                            color: Colors.white.withOpacity(0.2),
+                          ),
                         ),
                       ),
                     ),
@@ -640,12 +637,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   varietyName.toUpperCase(),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.white70, // Made visible against dark background
+                    color:
+                        Colors.white70, // Made visible against dark background
                     letterSpacing: 1.2,
                   ),
                 ),
               ),
-              
+
               // Glassmorphic Container replacing the old solid Card
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -675,12 +673,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           dividerColor: Colors.white.withOpacity(0.1),
                           dataTableTheme: const DataTableThemeData(
                             headingTextStyle: TextStyle(
-                              fontWeight: FontWeight.bold, 
+                              fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
-                            dataTextStyle: TextStyle(
-                              color: Colors.white,
-                            ),
+                            dataTextStyle: TextStyle(color: Colors.white),
                           ),
                         ),
                         child: DataTable(
@@ -700,15 +696,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                     Text(
                                       DateFormat('MM/dd/yy').format(
                                         DateTime.parse(
-                                          session['chartData'].first['recorded_at'],
+                                          session['chartData']
+                                              .first['recorded_at'],
                                         ),
                                       ),
                                     ),
                                   ),
                                   DataCell(Text('${session['weight']} kg')),
-                                  DataCell(Text('${session['initialMoisture']}%')),
+                                  DataCell(
+                                    Text('${session['initialMoisture']}%'),
+                                  ),
                                   DataCell(Text(session['duration'])),
-                                  DataCell(Text('${session['finalMoisture']}%')),
+                                  DataCell(
+                                    Text('${session['finalMoisture']}%'),
+                                  ),
                                 ],
                               ),
                             ),
@@ -722,7 +723,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                     'AVERAGE',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.lightBlueAccent, // Pops better than plain blue
+                                      color: Colors
+                                          .lightBlueAccent, // Pops better than plain blue
                                     ),
                                   ),
                                 ),
