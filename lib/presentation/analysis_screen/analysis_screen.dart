@@ -2,6 +2,7 @@ import 'dart:ui'; // <-- ADDED FOR GLASSMORPHISM (ImageFilter)
 import 'dart:io';
 
 import 'package:dryce_monitoring_system/presentation/analysis_screen/widgets/rice_variety_filter_widget.dart';
+import 'package:dryce_monitoring_system/presentation/analysis_screen/widgets/rice_variety_history_widget.dart';
 import 'package:dryce_monitoring_system/widgets/custom_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -497,63 +498,72 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               child: _buildNoDataState(),
                             )
                           else ...[
-                            if (_isSingleDaySelected)
+                            if (_filteredData.isEmpty)
+                              SliverFillRemaining(
+                                hasScrollBody: false,
+                                child: _buildNoDataState(),
+                              )
+                            else ...[
+                              if (!_isSingleDaySelected)
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0,
+                                      vertical: 10,
+                                    ),
+                                    child: Container(
+                                      height: 280,
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.05),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      padding: const EdgeInsets.fromLTRB(
+                                        8,
+                                        24,
+                                        16,
+                                        12,
+                                      ),
+                                      child: RiceVarietyHistoryChart(
+                                        historicalCycles: _filteredData,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              if (_isSingleDaySelected)
+                                SliverToBoxAdapter(
+                                  child: HistoricalDataWidget(
+                                    // Assuming this is your real-time sensor widget
+                                    historicalCycles: _filteredData,
+                                    onDelete: (session) =>
+                                        _deleteSession(session),
+                                  ),
+                                ),
                               SliverToBoxAdapter(
-                                child: HistoricalDataWidget(
-                                  historicalCycles: _filteredData,
-                                  onDelete: (dynamic sessionData) {
-                                    if (sessionData is Map<String, dynamic>) {
-                                      _deleteSession(sessionData);
-                                    } else {
-                                      final fullMap = _sensorHistoricalData
-                                          .firstWhere(
-                                            (s) =>
-                                                s['session_id'] == sessionData,
-                                            orElse: () => <String, dynamic>{},
-                                          );
-                                      if (fullMap.isNotEmpty) {
-                                        _deleteSession(fullMap);
-                                      }
-                                    }
-                                  },
-                                ),
-                              ),
-
-                            // --- UPDATED FOR VISIBILITY ---
-                            SliverToBoxAdapter(
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
-                                  32,
-                                  16,
-                                  8,
-                                ),
-                                child: Text(
-                                  _isSingleDaySelected
-                                      ? (DateUtils.isSameDay(
-                                              _selectedRange.start,
-                                              DateTime.now(),
-                                            )
-                                            ? "Today's Drying Sessions"
-                                            : "Drying Sessions: ${DateFormat('MMM dd, yyyy').format(_selectedRange.start)}")
-                                      : "Batch Analysis Summary",
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color:
-                                        Colors.white, // Forces text to be white
-                                    letterSpacing: 1.1,
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    32,
+                                    16,
+                                    8,
+                                  ),
+                                  child: Text(
+                                    _isSingleDaySelected
+                                        ? "Today's Sensor Records"
+                                        : "Variety Processing Timeline",
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                          letterSpacing: 1.1,
+                                        ),
                                   ),
                                 ),
                               ),
-                            ),
-
-                            SliverToBoxAdapter(
-                              child: _buildAnalysisTable(_filteredData),
-                            ),
-
-                            const SliverToBoxAdapter(
-                              child: SizedBox(height: 24),
-                            ),
+                              SliverToBoxAdapter(
+                                child: _buildAnalysisTable(_filteredData),
+                              ),
+                            ],
                           ],
                         ],
                       ),

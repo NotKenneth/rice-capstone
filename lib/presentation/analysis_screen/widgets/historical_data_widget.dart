@@ -1,3 +1,4 @@
+import 'package:dryce_monitoring_system/presentation/analysis_screen/widgets/rice_variety_history_widget.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
@@ -19,6 +20,12 @@ class HistoricalDataWidget extends StatefulWidget {
 
 class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
   int? _expandedIndex;
+
+  /* bool _shouldShowTimeline() {
+    if (widget.historicalCycles.isEmpty) return false;
+
+    return widget.historicalCycles.length >= 1;
+  }*/
 
   Future<bool?> _showDeleteConfirmation(BuildContext context) async {
     return await showDialog<bool>(
@@ -45,98 +52,119 @@ class _HistoricalDataWidgetState extends State<HistoricalDataWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // final showTimeline = _shouldShowTimeline();
+
     return Container(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Real-time Sensor History',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. CONDITIONAL TIMELINE CHART SECTION
+            /* if (showTimeline) ...[
+              Text(
+                'Processing Timeline',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                height: 250,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: RiceVarietyHistoryChart(
+                  historicalCycles: widget.historicalCycles,
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],*/
+
+            // 2. DETAILED LIST SECTION (Always visible)
+            Text(
+              'Real-time Sensor History',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: widget.historicalCycles.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final cycle = widget.historicalCycles[index];
-              final isExpanded = _expandedIndex == index;
-              final sessionId =
-                  cycle['session_id']?.toString() ?? "temp_$index";
+            const SizedBox(height: 16),
 
-              return Dismissible(
-                key: Key('delete_session_$sessionId'),
-                direction: DismissDirection.endToStart,
-                dragStartBehavior: DragStartBehavior.down,
-                confirmDismiss: (direction) => _showDeleteConfirmation(context),
-                onDismissed: (direction) {
-                  widget.onDelete(cycle);
-                },
-
-                secondaryBackground: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 25.0),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.delete_forever, color: Colors.white, size: 30),
-                      Text(
-                        "Delete",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+            // Handle empty state for the list specifically
+            if (widget.historicalCycles.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Text(
+                    "No data found for this range",
+                    style: TextStyle(color: Colors.white54),
                   ),
                 ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: widget.historicalCycles.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final cycle = widget.historicalCycles[index];
+                  final isExpanded = _expandedIndex == index;
+                  final sessionId =
+                      cycle['session_id']?.toString() ?? "temp_$index";
 
-                background: Container(),
-
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        onTap: () => setState(
-                          () => _expandedIndex = isExpanded ? null : index,
-                        ),
-                        leading: _buildLeadingIcon(theme),
-                        title: Text(
-                          cycle['variety'] ?? 'Unknown',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                  return Dismissible(
+                    key: Key('delete_session_$sessionId'),
+                    direction: DismissDirection.endToStart,
+                    dragStartBehavior: DragStartBehavior.down,
+                    confirmDismiss: (direction) =>
+                        _showDeleteConfirmation(context),
+                    onDismissed: (direction) => widget.onDelete(cycle),
+                    secondaryBackground: _buildDeleteBackground(),
+                    background: Container(),
+                    child: Card(
+                      margin: EdgeInsets.zero,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          ListTile(
+                            onTap: () => setState(
+                              () => _expandedIndex = isExpanded ? null : index,
+                            ),
+                            leading: _buildLeadingIcon(theme),
+                            title: Text(
+                              cycle['variety'] ?? 'Unknown',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            subtitle: Text(cycle['date'] ?? ''),
+                            trailing: CustomIconWidget(
+                              iconName: isExpanded
+                                  ? 'expand_less'
+                                  : 'expand_more',
+                              size: 24,
+                            ),
                           ),
-                        ),
-                        subtitle: Text(cycle['date'] ?? ''),
-                        trailing: CustomIconWidget(
-                          iconName: isExpanded ? 'expand_less' : 'expand_more',
-                          size: 24,
-                        ),
+                          if (isExpanded) _buildExpandedContent(context, cycle),
+                        ],
                       ),
-                      if (isExpanded) _buildExpandedContent(context, cycle),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
