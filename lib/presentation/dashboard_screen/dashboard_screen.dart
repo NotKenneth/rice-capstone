@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'dart:typed_data';
-import 'package:lottie/lottie.dart'; 
+import 'package:lottie/lottie.dart';
 
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_bottom_bar.dart';
@@ -86,7 +86,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _requestNotificationPermissions() {
     flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.requestNotificationsPermission();
   }
 
@@ -213,6 +214,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'last_started_at': activate ? nowIso : null,
             'last_update': nowIso,
             'rice_variety': activate ? currentSelection : "",
+            'weight': activate ? currentWeight : 0.0,
           })
           .inFilter('id', idsToUpdate);
 
@@ -291,44 +293,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
               "target",
             )) {
               updated = true;
-          } else if (m >= 12.5 &&m <= 14.3) {
-            if (_addToBell(
-              id,
-              "Approaching target moisture: ${m.toStringAsFixed(1)}%",
-              "approach",
-            )) {
-              updated = true;
+            } else if (m >= 12.5 && m <= 14.3) {
+              if (_addToBell(
+                id,
+                "Approaching target moisture: ${m.toStringAsFixed(1)}%",
+                "approach",
+              )) {
+                updated = true;
+              }
             }
-          }
 
-          if (t > 45.0) {
-            if (_addToBell(
-              id,
-              "LIMIT REACHED: ${t.toStringAsFixed(1)}°C",
-              "critical",
-            )) {
-              updated = true;
-            }
-          } else if (t > 40.0 && t <= 45.0) {
-            if (_addToBell(
-              id,
-              "Approaching temperature limit: ${t.toStringAsFixed(1)}°C",
-              "approach",
-            )) {
-              updated = true;
+            if (t > 45.0) {
+              if (_addToBell(
+                id,
+                "LIMIT REACHED: ${t.toStringAsFixed(1)}°C",
+                "critical",
+              )) {
+                updated = true;
+              }
+            } else if (t > 40.0 && t <= 45.0) {
+              if (_addToBell(
+                id,
+                "Approaching temperature limit: ${t.toStringAsFixed(1)}°C",
+                "approach",
+              )) {
+                updated = true;
+              }
             }
           }
         }
-      }
 
-      if (moistureSensors.isNotEmpty && readyCount == moistureSensors.length) {
-        if (_addToBell("SYSTEM", "ALL GRAINS ARE READY!", "ready")) {
-          updated = true;
+        if (moistureSensors.isNotEmpty &&
+            readyCount == moistureSensors.length) {
+          if (_addToBell("SYSTEM", "ALL GRAINS ARE READY!", "ready")) {
+            updated = true;
+          }
         }
-      }
 
-      if (updated && mounted) setState(() {});
-    }
+        if (updated && mounted) setState(() {});
+      }
     });
   }
 
@@ -380,8 +383,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold( 
-      extendBody: true, 
+    return Scaffold(
+      extendBody: true,
       appBar: CustomAppBar(
         // Replace the string with an Image.asset widget
         title: Image.asset(
@@ -402,12 +405,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Positioned.fill(
             child: Lottie.asset(
-              'assets/Background_shooting_star.json', 
-              fit: BoxFit.cover, 
+              'assets/Background_shooting_star.json',
+              fit: BoxFit.cover,
             ),
           ),
-          // -----------------------------------
 
+          // -----------------------------------
           StreamBuilder<List<Map<String, dynamic>>>(
             stream: _sensorStream,
             builder: (context, snapshot) {
@@ -418,7 +421,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     margin: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
@@ -439,7 +444,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const SizedBox(height: 16),
                               const Text(
                                 "Connection Timeout",
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 8),
@@ -455,7 +464,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   setState(() {});
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.2,
+                                  ),
                                   foregroundColor: Colors.white,
                                   elevation: 0,
                                 ),
@@ -471,7 +482,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
               }
               if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator(color: Colors.white));
+                return const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                );
               }
 
               final allSensors = snapshot.data!;
@@ -529,13 +542,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     })
                                     .like('id', 'MSENSOR%');
 
-                                debugPrint("Variety updated in Supabase to: $val");
+                                debugPrint(
+                                  "Variety updated in Supabase to: $val",
+                                );
                               } catch (e) {
                                 debugPrint("Error updating variety: $e");
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text("Failed to sync variety: $e"),
+                                      content: Text(
+                                        "Failed to sync variety: $e",
+                                      ),
                                     ),
                                   );
                                 }
@@ -554,10 +571,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       child: Container(
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12), // Slightly tighter radius like your images
+                          borderRadius: BorderRadius.circular(
+                            12,
+                          ), // Slightly tighter radius like your images
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.25), // Stronger shadow for depth against dark bg
+                              color: Colors.black.withValues(
+                                alpha: 0.25,
+                              ), // Stronger shadow for depth against dark bg
                               blurRadius: 12,
                               spreadRadius: 0,
                               offset: const Offset(0, 6),
@@ -567,7 +588,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), // Smooth, moderate blur
+                            filter: ImageFilter.blur(
+                              sigmaX: 12,
+                              sigmaY: 12,
+                            ), // Smooth, moderate blur
                             child: Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(12),
@@ -576,21 +600,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    Colors.white.withValues(alpha: 0.08), // Faint highlight top-left
-                                    Colors.white.withValues(alpha: 0.02), // Almost transparent bottom-right
+                                    Colors.white.withValues(
+                                      alpha: 0.08,
+                                    ), // Faint highlight top-left
+                                    Colors.white.withValues(
+                                      alpha: 0.02,
+                                    ), // Almost transparent bottom-right
                                   ],
                                 ),
                                 // Thin, delicate border matching your reference
                                 border: Border.all(
                                   color: Colors.white.withValues(alpha: 0.12),
-                                  width: 1.0, 
+                                  width: 1.0,
                                 ),
                               ),
                               child: TextField(
                                 controller: _weightController,
-                                keyboardType: const TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
@@ -598,23 +627,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                                 decoration: InputDecoration(
                                   contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 18, 
+                                    vertical: 18,
                                     horizontal: 16,
                                   ),
                                   labelText: "Total Grain Weight (kg)",
                                   labelStyle: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white, // Solid white like your image
+                                    color: Colors
+                                        .white, // Solid white like your image
                                   ),
                                   hintText: "Enter weight...",
                                   hintStyle: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.3), // Darker hint text
+                                    color: Colors.white.withValues(
+                                      alpha: 0.3,
+                                    ), // Darker hint text
                                   ),
                                   prefixIcon: Padding(
-                                    padding: const EdgeInsets.only(left: 12.0, right: 8.0),
+                                    padding: const EdgeInsets.only(
+                                      left: 12.0,
+                                      right: 8.0,
+                                    ),
                                     child: Icon(
-                                      Icons.scale_rounded, // Assuming you have a scale icon, or use your custom icon here
-                                      color: Colors.white, 
+                                      Icons
+                                          .scale_rounded, // Assuming you have a scale icon, or use your custom icon here
+                                      color: Colors.white,
                                     ),
                                   ),
                                   filled: false,
@@ -646,12 +682,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.62,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.62,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final sensor = moistureSensors[index];
                         String displayId =
@@ -667,17 +704,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   .toDouble(),
                           status: sensor["status"]?.toString() ?? "Offline",
                           lastUpdate:
-                              DateTime.tryParse(sensor["last_update"]?.toString() ?? "") ??
+                              DateTime.tryParse(
+                                sensor["last_update"]?.toString() ?? "",
+                              ) ??
                               DateTime.now(),
                           startTime: sensor["last_started_at"] != null
-                              ? DateTime.tryParse(sensor["last_started_at"].toString())
+                              ? DateTime.tryParse(
+                                  sensor["last_started_at"].toString(),
+                                )
                               : null,
                           connectionStatus:
                               sensor["connection_status"]?.toString() ??
                               "Disconnected",
                           riceVariety: sensor["rice_variety"]?.toString() ?? "",
                           isActive: sensor["is_active"] ?? false,
-                          onTap: () {}, temperature: 0,
+                          onTap: () {},
+                          temperature: 0,
                         );
                       }, childCount: moistureSensors.length),
                     ),
@@ -692,7 +734,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             "Heater Monitoring",
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.white, // Ensure it's white over Lottie
+                              color:
+                                  Colors.white, // Ensure it's white over Lottie
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -706,12 +749,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
             },
           ),
-          
+
           // 3. Floating Bottom Bar (Now safely inside a Stack)
           Align(
             alignment: Alignment.bottomCenter,
             child: CustomBottomBar(currentRoute: '/dashboard-screen'),
-            
           ),
         ],
       ),
@@ -726,8 +768,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           // Subtle red border if hot, white if normal
-          color: isHot 
-              ? Colors.redAccent.withValues(alpha: 0.5) 
+          color: isHot
+              ? Colors.redAccent.withValues(alpha: 0.5)
               : Colors.white.withValues(alpha: 0.2),
           width: 1,
         ),
@@ -751,11 +793,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 colors: isHot
                     ? [
                         Colors.orange[900]!.withValues(alpha: 0.3),
-                        Colors.red[700]!.withValues(alpha: 0.3)
+                        Colors.red[700]!.withValues(alpha: 0.3),
                       ]
                     : [
                         Colors.white.withValues(alpha: 0.15),
-                        Colors.white.withValues(alpha: 0.05)
+                        Colors.white.withValues(alpha: 0.05),
                       ],
               ),
             ),
@@ -848,13 +890,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     backgroundColor: anyActive
                         ? Colors.red[700]?.withValues(alpha: 0.8)
                         : Colors.green[700]?.withValues(alpha: 0.8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                       side: BorderSide(
                         color: Colors.white.withValues(alpha: 0.3),
-                      )
-                    )
+                      ),
+                    ),
                   ),
                 ),
         ],
@@ -882,9 +927,14 @@ class _NotificationListSheet extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
           height: 450,
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.4), // Dark translucent overlay
+            color: Colors.black.withValues(
+              alpha: 0.4,
+            ), // Dark translucent overlay
             border: Border(
-              top: BorderSide(color: Colors.white.withValues(alpha: 0.2), width: 1),
+              top: BorderSide(
+                color: Colors.white.withValues(alpha: 0.2),
+                width: 1,
+              ),
             ),
           ),
           child: Column(
@@ -912,10 +962,15 @@ class _NotificationListSheet extends StatelessWidget {
                   if (notifications.isNotEmpty)
                     TextButton.icon(
                       onPressed: onClear,
-                      icon: Icon(Icons.clear_all, color: Colors.white.withValues(alpha: 0.8)),
+                      icon: Icon(
+                        Icons.clear_all,
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
                       label: Text(
                         "Clear All",
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
                       ),
                     ),
                 ],
@@ -958,9 +1013,14 @@ class _NotificationListSheet extends StatelessWidget {
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: alertColor.withValues(alpha: 0.5), width: 1),
+                        side: BorderSide(
+                          color: alertColor.withValues(alpha: 0.5),
+                          width: 1,
+                        ),
                       ),
-                      color: alertColor.withValues(alpha: 0.1), // Translucent colored card
+                      color: alertColor.withValues(
+                        alpha: 0.1,
+                      ), // Translucent colored card
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: alertColor.withValues(alpha: 0.2),
@@ -968,14 +1028,19 @@ class _NotificationListSheet extends StatelessWidget {
                         ),
                         title: Text(
                           n['sensorId'],
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               n['message'],
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.8),
+                              ),
                             ),
                             Text(
                               DateFormat('jm').format(n['time']),
